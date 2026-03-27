@@ -1,5 +1,7 @@
 # Bootcrew
 
+> This repository is a fork of `bootcrew/mono`. Credit to the original project and maintainers for the base image definitions, workflows, and overall structure.
+
 This is a monorepo for all the Bootcrew images! These are multiple different container images made for usage with [`bootc`](https://github.com/bootc-dev/bootc), they can be used as a base to build upon and make your own full images for your usecase, similar to the work from the [Fedora Bootc Base Images](https://docs.fedoraproject.org/en-US/bootc/base-images/) and [Universal Blue](http://universal-blue.org/).
 
 ## Building and Running
