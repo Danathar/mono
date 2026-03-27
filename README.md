@@ -1,7 +1,5 @@
 # Bootcrew
 
-> This repository is a fork of `bootcrew/mono`. Credit to the original project and maintainers for the base image definitions, workflows, and overall structure.
-
 This is a monorepo for all the Bootcrew images! These are multiple different container images made for usage with [`bootc`](https://github.com/bootc-dev/bootc), they can be used as a base to build upon and make your own full images for your usecase, similar to the work from the [Fedora Bootc Base Images](https://docs.fedoraproject.org/en-US/bootc/base-images/) and [Universal Blue](http://universal-blue.org/).
 
 ## Building and Running
@@ -50,9 +48,9 @@ The workflows in this repo are already configured to run on a schedule, so once 
 
 The reusable workflow publishes images to the GitHub Container Registry for the current repository owner. That means when run from your fork, the image is published under your own namespace rather than the upstream `bootcrew` namespace.
 
-If your GitHub username is `Danathar` and you keep the Ubuntu image name unchanged, the published image would look like:
+If your GitHub username is `your-username` and you keep the Ubuntu image name unchanged, the published image would look like:
 
-`ghcr.io/danathar/ubuntu-bootc:latest`
+`ghcr.io/your-username/ubuntu-bootc:latest`
 
 ### Recommended setup for a single-image fork
 
@@ -67,4 +65,4 @@ This keeps the fork simple and avoids wasting CI time building images you do not
 
 ### Objective
 
-None of these should need to exist, ideally all of these projects would directly publish `(project-name)-bootc` images, or at least provide a `bootc` package or bundle for it. We aim to make our images as small and basic as possible to minimize maintenance burden and make it easier to upstream any effors from them.
+None of these should need to exist, ideally all of these projects would directly publish `(project-name)-bootc` images, or at least provide a `bootc` package or bundle for it. We aim to make our images as small and basic as possible to minimize maintenance burden and make it easier to upstream any effors from them..
