@@ -1,38 +1,52 @@
+# Helper stage that carries the shared scripts used by every distro build.
 FROM scratch AS ctx
 
 COPY ../shared/ /shared
 
-FROM  docker.io/library/ubuntu:questing AS base
+# Ubuntu base image used by both the builder and runtime stages.
+FROM docker.io/library/ubuntu:questing AS base
 
+# Builder stage: compile bootc here so the final image stays lean.
 FROM base AS builder
 
+# Install the packages needed to compile upstream bootc.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
     apt update -y && \
     apt install -y git curl make build-essential go-md2man libzstd-dev pkgconf libostree-dev ostree
 
+# Rust is build-only state, so keep it in `/tmp`.
 ENV CARGO_HOME=/tmp/rust
 ENV RUSTUP_HOME=/tmp/rust
 WORKDIR /home/build
+# Use rustup to provide a current Rust toolchain, then run the shared build script.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     curl --proto '=https' --tlsv1.2 -sSf "https://sh.rustup.rs" | sh -s -- --profile minimal -y && \
     sh -c ". ${RUSTUP_HOME}/env ; /ctx/shared/build.sh"
 
+# Final bootable Ubuntu image.
 FROM base AS system
 COPY --from=builder /output /
 
+# Install the kernel, boot loader pieces, filesystem utilities, and runtime tools.
+# As with Debian, copy the packaged kernel next to its module directory for later tools.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot apt update -y && \
   apt install -y btrfs-progs dosfstools e2fsprogs fdisk linux-firmware linux-image-generic skopeo systemd systemd-boot* xfsprogs libostree-dev dracut && \
   cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
   apt clean -y
 
+# Rebuild the initramfs so early boot knows about bootc.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/shared/initramfs.sh
 
+# Place new home directories under `/var/home`, then normalize the final rootfs
+# layout for bootc's immutable-root model.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     echo "HOME=/var/home" | tee -a "/etc/default/useradd" && \
     /ctx/shared/bootc-rootfs.sh
 
+# OCI metadata used by bootc-aware tooling.
 LABEL containers.bootc 1
 
+# Validate the resulting image before the build completes.
 RUN bootc container lint

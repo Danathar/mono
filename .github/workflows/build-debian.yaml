@@ -1,26 +1,35 @@
+# Thin wrapper workflow for the Debian image.
 name: Build Debian
 
 permissions:
+  # Minimal permissions for checkout, publishing, and image signing.
   contents: read
   packages: write
   id-token: write
 
 on:
+  # Build branch pushes automatically.
   push:
+  # Validate pull requests before merge.
   pull_request:
     branches:
       - main
+  # Rebuild weekly so fresh Debian packages flow into the image.
   schedule:
     - cron: "0 1 * * TUE"
+  # Support merge queues.
   merge_group:
+  # Support manual runs from the GitHub UI.
   workflow_dispatch:
 
 concurrency:
+  # Only keep the newest run for each branch/workflow combination.
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   build:
+    # The shared workflow performs the matrix build and publish steps.
     uses: ./.github/workflows/reusable-build.yaml
     secrets: inherit
     with:
@@ -28,6 +37,8 @@ jobs:
       image-desc: "Experimental debian-bootc POC image"
       image-keywords: "bootc,debian"
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
+      # Build both amd64 and arm64 variants.
       platforms: amd64,arm64
+      # Only default-branch non-PR runs publish or rechunk.
       rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

@@ -1,26 +1,36 @@
+# Thin wrapper workflow for the Ubuntu image.
 name: Build Ubuntu
 
 permissions:
+  # Read the repo, push packages to GHCR, and request signing identity.
   contents: read
   packages: write
   id-token: write
 
 on:
+  # Validate normal pushes.
   push:
+  # Validate pull requests to `main`.
   pull_request:
     branches:
       - main
+  # Rebuild weekly to pick up Ubuntu package updates.
   schedule:
     - cron: "0 1 * * TUE"
+  # Support merge queue runs.
   merge_group:
+  # Allow maintainers to trigger an on-demand rebuild.
   workflow_dispatch:
 
 concurrency:
+  # Keep only the newest run per branch/workflow pair active.
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   build:
+    # The reusable workflow contains the real job graph; this file only provides
+    # Ubuntu-specific metadata and platform settings.
     uses: ./.github/workflows/reusable-build.yaml
     secrets: inherit
     with:
@@ -28,6 +38,8 @@ jobs:
       image-desc: "Experimental ubuntu-bootc POC image"
       image-keywords: "bootc,ubuntu"
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
+      # Build both amd64 and arm64 variants.
       platforms: amd64,arm64
+      # Pull requests build for validation only; publishing happens from the default branch.
       rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

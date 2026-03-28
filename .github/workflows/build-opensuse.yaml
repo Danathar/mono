@@ -1,26 +1,35 @@
+# Thin wrapper workflow for the openSUSE image.
 name: Build OpenSUSE Tumbleweed
 
 permissions:
+  # Minimal permissions for checkout, publishing, and signing.
   contents: read
   packages: write
   id-token: write
 
 on:
+  # Build pushes automatically.
   push:
+  # Validate pull requests to `main`.
   pull_request:
     branches:
       - main
+  # Weekly rebuild keeps a rolling-release base image fresh.
   schedule:
     - cron: "0 1 * * TUE"
+  # Support merge queue runs.
   merge_group:
+  # Allow manual rebuilds.
   workflow_dispatch:
 
 concurrency:
+  # Cancel superseded runs when a newer commit arrives on the same branch.
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   build:
+    # Reuse the common build/publish workflow with openSUSE-specific metadata.
     uses: ./.github/workflows/reusable-build.yaml
     secrets: inherit
     with:
@@ -28,6 +37,8 @@ jobs:
       image-desc: "Experimental opensuse-bootc POC image"
       image-keywords: "bootc,opensuse"
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
+      # Build both major architectures supported by the shared workflow.
       platforms: amd64,arm64
+      # Publishing is reserved for default-branch, non-PR runs.
       rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

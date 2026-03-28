@@ -1,38 +1,54 @@
+# Helper stage that exposes the shared scripts to later stages.
 FROM scratch AS ctx
 
 COPY ../shared/ /shared
 
+# Debian unstable base image for both build and runtime stages.
 FROM docker.io/library/debian:unstable AS base
 
+# Builder stage: keep compilers and build dependencies out of the final image.
 FROM base AS builder
 
+# Install toolchain packages and ostree/dracut dependencies needed to build bootc.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
     apt update -y && \
     apt install -y git curl make build-essential go-md2man libzstd-dev pkgconf dracut libostree-dev ostree
 
+# Rust is only needed while compiling, so keep its cache under `/tmp`.
 ENV CARGO_HOME=/tmp/rust
 ENV RUSTUP_HOME=/tmp/rust
 WORKDIR /home/build
+# Debian provides many dependencies, but rustup gives us a current Rust toolchain
+# for building upstream bootc.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     curl --proto '=https' --tlsv1.2 -sSf "https://sh.rustup.rs" | sh -s -- --profile minimal -y && \
     sh -c ". ${RUSTUP_HOME}/env ; /ctx/shared/build.sh"
 
+# Final bootable image stage.
 FROM base AS system
 COPY --from=builder /output /
 
+# Install the kernel, boot loader pieces, filesystem tools, and runtime packages.
+# The kernel is copied next to its module directory because later boot tooling
+# expects to find `vmlinuz` there.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot apt update -y && \
   apt install -y btrfs-progs dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic skopeo systemd systemd-boot* xfsprogs libostree-dev && \
   cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
   apt clean -y
 
+# Generate an initramfs that contains the bootc boot logic.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/shared/initramfs.sh
 
+# Put future home directories under `/var/home`, then normalize the root
+# filesystem to the immutable bootc layout.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
     /ctx/shared/bootc-rootfs.sh
 
+# OCI metadata consumed by bootc-aware tooling.
 LABEL containers.bootc 1
 
+# Validate the finished container before the build succeeds.
 RUN bootc container lint

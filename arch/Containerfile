@@ -1,37 +1,55 @@
+# Helper stage that contains only the shared scripts. Later stages mount it as
+# `/ctx` so they can reuse repository scripts without copying the whole repo in.
 FROM scratch AS ctx
 
 COPY ../shared/ /shared
 
+# Clean Arch base image used by both the builder and the final system stage.
 FROM docker.io/archlinux/archlinux:latest AS base
 
+# Builder stage: compilers and development packages stay here, not in the final image.
 FROM base AS builder
 
+# Install the packages needed to compile upstream bootc.
 RUN pacman -Syu --noconfirm make git rust go-md2man ostree glibc pkgconf
 
 WORKDIR /home/build
+# Compile and install bootc into `/output`.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/shared/build.sh
 
+# Final bootable operating-system image.
 FROM base AS system
 
+# Copy only the built artifacts from the builder stage.
 COPY --from=builder /output /
 
-# Move everything from `/var` to `/usr/lib/sysimage` so behavior around pacman remains the same on `bootc usroverlay`'d systems
+# Arch stores some important package-manager state under `/var`, but bootc images
+# treat most of the root as immutable. This remaps pacman's mutable state into
+# `/usr/lib/sysimage` so it still behaves sensibly on a bootc/usroverlay system.
 RUN grep "= */var" /etc/pacman.conf | sed "/= *\/var/s/.*=// ; s/ //" | xargs -n1 sh -c 'mkdir -p "/usr/lib/sysimage/$(dirname $(echo $1 | sed "s@/var/@@"))" && mv -v "$1" "/usr/lib/sysimage/$(echo "$1" | sed "s@/var/@@")"' '' && \
     sed -i -e "/= *\/var/ s/^#//" -e "s@= */var@= /usr/lib/sysimage@g" -e "/DownloadUser/d" /etc/pacman.conf
 
+# Update the base system before layering on kernel and runtime packages.
 RUN pacman -Syu --noconfirm
 
+# Install the kernel, firmware, filesystem utilities, ostree tooling, and a small
+# base userland so the image is actually bootable.
 RUN pacman -Sy --noconfirm base dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow && pacman -S --clean --noconfirm
 
+# Rebuild the initramfs so it includes the bootc dracut module.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/shared/initramfs.sh
 
+# Default new users should live under `/var/home`, then the shared helper rewrites
+# the rest of the filesystem into a bootc-friendly layout.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
     /ctx/shared/bootc-rootfs.sh
 
+# OCI metadata that tells tooling this is a bootc image.
 LABEL containers.bootc 1
 
+# Fail the build if bootc spots an invalid image layout.
 RUN bootc container lint
