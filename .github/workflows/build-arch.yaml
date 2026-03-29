@@ -43,4 +43,7 @@ jobs:
       platforms: amd64
       # Disabled until GitHub runners ship a Podman that supports type=image mounts.
       rechunk: false
-      publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      # Forks often reuse the same image name but do not automatically inherit
+      # GHCR package access or signing secrets. Keep upstream releases unchanged
+      # and let forks opt in once their registry settings are ready.
+      publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.repository == 'bootcrew/mono' || vars.FORK_ENABLE_PUBLISH == 'true') }}

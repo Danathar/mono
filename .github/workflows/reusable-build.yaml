@@ -141,18 +141,28 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           MAX_RETRIES: 3
         run: |
-          set -x
+          set -euo pipefail
+          push_with_digest() {
+            rm -f /tmp/digestfile
+            for i in $(seq "${MAX_RETRIES}"); do
+              if sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}"; then
+                break
+              fi
+              sleep $((5 * i))
+            done
+
+            if [[ ! -s /tmp/digestfile ]]; then
+              echo "podman push did not produce a digest file; verify GHCR package access for ${IMAGE_REGISTRY}/${IMAGE_NAME}" >&2
+              exit 1
+            fi
+
+            echo "remote_image_digest=$(< /tmp/digestfile)" | tee -a "${GITHUB_OUTPUT}"
+          }
+
           # HACK: push a second time so layer annotations are present
           # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
-          for i in $(seq "${MAX_RETRIES}"); do
-            sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}" && break || sleep $((5 * i));
-          done
-          echo "remote_image_digest=$(< /tmp/digestfile)" | tee "${GITHUB_OUTPUT}"
-
-          for i in $(seq "${MAX_RETRIES}"); do
-            sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}" && break || sleep $((5 * i));
-          done
-          echo "remote_image_digest=$(< /tmp/digestfile)" | tee "${GITHUB_OUTPUT}"
+          push_with_digest
+          push_with_digest
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.0.0

@@ -36,6 +36,7 @@ jobs:
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
       # Build both amd64 and arm64 variants.
       platforms: amd64,arm64
-      # Pull requests build for validation only; publishing happens from the default branch.
-      rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-      publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      # Pull requests build for validation only; default-branch releases stay
+      # enabled upstream while forks opt in after registry access is configured.
+      rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.repository == 'bootcrew/mono' || vars.FORK_ENABLE_PUBLISH == 'true') }}
+      publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.repository == 'bootcrew/mono' || vars.FORK_ENABLE_PUBLISH == 'true') }}
