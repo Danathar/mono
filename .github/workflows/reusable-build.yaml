@@ -50,7 +50,6 @@ env:
   IMAGE_KEYWORDS: "${{inputs.image-keywords}}"
   IMAGE_LOGO_URL: "${{inputs.image-logo}}"
   IMAGE_NAME: "${{ inputs.image-name }}"
-  IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
 
 jobs:
   generate_matrix:
@@ -86,6 +85,9 @@ jobs:
       matrix: ${{fromJson(needs.generate_matrix.outputs.matrix)}}
     runs-on: ${{ matrix.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     steps:
+      - name: Set image registry
+        run: echo "IMAGE_REGISTRY=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Mount BTRFS for podman storage
         if: matrix.platform != 'arm64' && inputs.cleanup_action
         uses: ublue-os/container-storage-action@911baca08baf30c8654933e9e9723cb399892140
@@ -201,6 +203,10 @@ jobs:
     steps:
       - name: Install dependencies
         run: apk add bash coreutils curl docker findutils fuse-overlayfs git grep jq podman sed
+
+      - name: Set image registry
+        shell: bash
+        run: echo "IMAGE_REGISTRY=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Exit on failure
         shell: bash
