@@ -35,7 +35,6 @@ jobs:
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
       # Build both major architectures supported by the shared workflow.
       platforms: amd64,arm64
-      # Publishing is reserved for default-branch, non-PR runs. Forks must opt
-      # in after granting this repo GHCR package access and configuring signing.
-      rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.repository == 'bootcrew/mono' || vars.FORK_ENABLE_PUBLISH == 'true') }}
-      publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.repository == 'bootcrew/mono' || vars.FORK_ENABLE_PUBLISH == 'true') }}
+      # Publishing is reserved for default-branch, non-PR runs.
+      rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
