@@ -57,7 +57,7 @@ rechunk $image_name=image_name:
     # 3. load the rebuilt image back into Podman
     # 4. extract the temporary image ID
     # 5. retag that result back to the original local image name
-    podman run --rm "--mount=type=image,src=${image_name}-bootc,dest=/chunkah" -e CHUNKAH_CONFIG_STR quay.io/jlebon/chunkah build --label ostree.bootable=1 --compressed --max-layers 128 | \
+    podman run --rm "--mount=type=image,src=${image_name}-bootc,dest=/chunkah" -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah build --label ostree.bootable=1 --compressed --max-layers 128 | \
         podman load | \
         sort -n | \
         head -n1 | \
