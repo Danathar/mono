@@ -38,7 +38,7 @@ RUN sed -i 's/^[[:space:]]*NoExtract/#&/' /etc/pacman.conf
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=cache,dst=/usr/lib/sysimage/cache/pacman pacman -Syu glibc --noconfirm
 
 # Install core base packages from external file.
-COPY packages-base.txt /tmp/packages-base.txt
+COPY arch/packages-base.txt /tmp/packages-base.txt
 RUN --mount=type=tmpfs,dst=/tmp/pacman-cache --mount=type=cache,dst=/usr/lib/sysimage/cache/pacman \
     pacman -Syu --noconfirm $(cat /tmp/packages-base.txt) && \
     (pacman -Qq nano >/dev/null 2>&1 && pacman -Rns --noconfirm nano || true) && \
@@ -84,7 +84,7 @@ RUN systemctl preset brew-setup.service brew-update.timer brew-upgrade.timer
 FROM base AS kde
 
 # Install KDE and desktop packages from external file.
-COPY packages-kde.txt /tmp/packages-kde.txt
+COPY arch/packages-kde.txt /tmp/packages-kde.txt
 RUN --mount=type=tmpfs,dst=/tmp/pacman-cache --mount=type=cache,dst=/usr/lib/sysimage/cache/pacman \
     pacman -Syu --noconfirm $(cat /tmp/packages-kde.txt) && \
     pacman -S --clean --noconfirm && \
