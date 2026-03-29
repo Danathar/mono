@@ -108,6 +108,7 @@ jobs:
           sudo $(which just) build "$(sed 's/-bootc//' <<< "${IMAGE_NAME}")"
 
       - name: Rechunk image
+        if: inputs.rechunk
         run: |
           sudo $(which just) rechunk "$(sed 's/-bootc//' <<< "${IMAGE_NAME}")"
 
