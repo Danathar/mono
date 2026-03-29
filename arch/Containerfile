@@ -5,10 +5,10 @@ FROM scratch AS ctx
 COPY ../shared/ /shared
 
 # Clean Arch base image used by both the builder and the final system stage.
-FROM docker.io/archlinux/archlinux:latest AS base
+FROM docker.io/archlinux/archlinux:latest AS archbase
 
 # Builder stage: compilers and development packages stay here, not in the final image.
-FROM base AS builder
+FROM archbase AS builder
 
 # Install the packages needed to compile upstream bootc.
 RUN pacman -Syu --noconfirm make git rust go-md2man ostree glibc pkgconf
@@ -19,7 +19,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/shared/build.sh
 
 # Final bootable operating-system image.
-FROM base AS system
+FROM archbase AS base
 
 # Copy only the built artifacts from the builder stage.
 COPY --from=builder /output /
@@ -30,12 +30,20 @@ COPY --from=builder /output /
 RUN grep "= */var" /etc/pacman.conf | sed "/= *\/var/s/.*=// ; s/ //" | xargs -n1 sh -c 'mkdir -p "/usr/lib/sysimage/$(dirname $(echo $1 | sed "s@/var/@@"))" && mv -v "$1" "/usr/lib/sysimage/$(echo "$1" | sed "s@/var/@@")"' '' && \
     sed -i -e "/= *\/var/ s/^#//" -e "s@= */var@= /usr/lib/sysimage@g" -e "/DownloadUser/d" /etc/pacman.conf
 
-# Update the base system before layering on kernel and runtime packages.
-RUN pacman -Syu --noconfirm
+# Remove NoExtract rules so additional languages and help pages can be installed.
+# See https://gitlab.archlinux.org/archlinux/archlinux-docker/-/blob/master/pacman-conf.d-noextract.conf
+RUN sed -i 's/^[[:space:]]*NoExtract/#&/' /etc/pacman.conf
 
-# Install the kernel, firmware, filesystem utilities, ostree tooling, and a small
-# base userland so the image is actually bootable.
-RUN pacman -Sy --noconfirm base dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow && pacman -S --clean --noconfirm
+# Reinstall glibc to restore language files stripped from the base image.
+RUN --mount=type=tmpfs,dst=/tmp --mount=type=cache,dst=/usr/lib/sysimage/cache/pacman pacman -Syu glibc --noconfirm
+
+# Install core base packages from external file.
+COPY packages-base.txt /tmp/packages-base.txt
+RUN --mount=type=tmpfs,dst=/tmp/pacman-cache --mount=type=cache,dst=/usr/lib/sysimage/cache/pacman \
+    pacman -Syu --noconfirm $(cat /tmp/packages-base.txt) && \
+    (pacman -Qq nano >/dev/null 2>&1 && pacman -Rns --noconfirm nano || true) && \
+    pacman -S --clean --noconfirm && \
+    rm /tmp/packages-base.txt
 
 # Rebuild the initramfs so it includes the bootc dracut module.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
@@ -48,8 +56,55 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
     /ctx/shared/bootc-rootfs.sh
 
+# Remove hardcoded root password and lock it for security.
+RUN passwd -l root
+
+# Network and basic services configuration.
+RUN sed -i 's/^hosts: .*/hosts: mymachines mdns_minimal [NOTFOUND=return] resolve [!UNAVAIL=return] files myhostname dns/' /etc/nsswitch.conf && \
+    mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    ln -sf /usr/lib/systemd/system/NetworkManager.service /etc/systemd/system/multi-user.target.wants/NetworkManager.service && \
+    ln -sf /usr/lib/systemd/system/firewalld.service /etc/systemd/system/multi-user.target.wants/firewalld.service && \
+    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
+
+# Source profile.d scripts for non-login shells.
+RUN echo -e '\n# Source profile.d scripts for non-login shells\nfor script in /etc/profile.d/*.sh; do\n  [ -r "$script" ] && . "$script"\ndone\nunset script' >> /etc/bash.bashrc
+
 # OCI metadata that tells tooling this is a bootc image.
 LABEL containers.bootc 1
 
 # Fail the build if bootc spots an invalid image layout.
+RUN bootc container lint
+
+# Copy ublue-os/brew and enable its systemd services.
+COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
+RUN systemctl preset brew-setup.service brew-update.timer brew-upgrade.timer
+
+
+# --- Desktop Layer ---
+FROM base AS kde
+
+# Install KDE and desktop packages from external file.
+COPY packages-kde.txt /tmp/packages-kde.txt
+RUN --mount=type=tmpfs,dst=/tmp/pacman-cache --mount=type=cache,dst=/usr/lib/sysimage/cache/pacman \
+    pacman -Syu --noconfirm $(cat /tmp/packages-kde.txt) && \
+    pacman -S --clean --noconfirm && \
+    rm /tmp/packages-kde.txt
+
+# Additional desktop services.
+RUN mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    ln -sf /usr/lib/systemd/system/power-profiles-daemon.service /etc/systemd/system/multi-user.target.wants/power-profiles-daemon.service && \
+    ln -sf /usr/lib/systemd/system/bluetooth.service /etc/systemd/system/multi-user.target.wants/bluetooth.service && \
+    ln -sf /usr/lib/systemd/system/avahi-daemon.service /etc/systemd/system/multi-user.target.wants/avahi-daemon.service && \
+    ln -sf /usr/lib/systemd/system/cups.service /etc/systemd/system/multi-user.target.wants/cups.service
+
+# Enable graphical login for KDE.
+RUN mkdir -p /etc/systemd/system/graphical.target.wants && \
+    ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target && \
+    ln -sf /usr/lib/systemd/system/plasmalogin.service /etc/systemd/system/graphical.target.wants/plasmalogin.service && \
+    ln -sf /usr/lib/systemd/system/plasmalogin.service /etc/systemd/system/display-manager.service
+
+# Pre-configure Flathub system-wide remote.
+RUN mkdir -p /etc/flatpak/remotes.d && \
+    curl -o /etc/flatpak/remotes.d/flathub.flatpakrepo https://flathub.org/repo/flathub.flatpakrepo
+
 RUN bootc container lint

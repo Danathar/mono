@@ -8,18 +8,14 @@ permissions:
   id-token: write
 
 on:
-  # Build branch pushes automatically.
-  push:
-  # Validate pull requests before merge.
-  pull_request:
-    branches:
-      - main
-  # Rebuild weekly so fresh Debian packages flow into the image.
-  schedule:
-    - cron: "0 1 * * TUE"
-  # Support merge queues.
-  merge_group:
-  # Support manual runs from the GitHub UI.
+  # Disabled until we are ready to build Debian images.
+  # push:
+  # pull_request:
+  #   branches:
+  #     - main
+  # schedule:
+  #   - cron: "0 1 * * TUE"
+  # merge_group:
   workflow_dispatch:
 
 concurrency:

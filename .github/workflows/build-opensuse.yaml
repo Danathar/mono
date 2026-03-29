@@ -8,18 +8,14 @@ permissions:
   id-token: write
 
 on:
-  # Build pushes automatically.
-  push:
-  # Validate pull requests to `main`.
-  pull_request:
-    branches:
-      - main
-  # Weekly rebuild keeps a rolling-release base image fresh.
-  schedule:
-    - cron: "0 1 * * TUE"
-  # Support merge queue runs.
-  merge_group:
-  # Allow manual rebuilds.
+  # Disabled until we are ready to build openSUSE images.
+  # push:
+  # pull_request:
+  #   branches:
+  #     - main
+  # schedule:
+  #   - cron: "0 1 * * TUE"
+  # merge_group:
   workflow_dispatch:
 
 concurrency:

@@ -15,10 +15,13 @@ options := if selinux == "true" { "-v /var/lib/containers:/var/lib/containers:Z 
 container_runtime := env("CONTAINER_RUNTIME", `command -v podman >/dev/null 2>&1 && echo podman || echo docker`)
 
 # Build a distro directory such as `ubuntu/` or `debian/` into a local
-# `*-bootc:latest` image.
-build $image_name=image_name:
+# `*-bootc:latest` image.  An optional target selects a specific stage from
+# multi-stage Containerfiles (e.g. `just build arch kde`).
+build $image_name=image_name target="":
     # Building these system images often needs rootful container runtime access.
-    sudo {{container_runtime}} build -f {{image_name}}/Containerfile -t "${image_name}-bootc:latest" .
+    sudo {{container_runtime}} build -f {{image_name}}/Containerfile \
+        {{ if target != "" { "--target " + target } else { "" } }} \
+        -t "${image_name}-bootc:latest" .
 
 # Run the built image and forward arbitrary `bootc` subcommands into it.
 bootc $image_name=image_name $image_tag=image_tag *ARGS:

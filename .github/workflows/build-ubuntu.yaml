@@ -8,18 +8,14 @@ permissions:
   id-token: write
 
 on:
-  # Validate normal pushes.
-  push:
-  # Validate pull requests to `main`.
-  pull_request:
-    branches:
-      - main
-  # Rebuild weekly to pick up Ubuntu package updates.
-  schedule:
-    - cron: "0 1 * * TUE"
-  # Support merge queue runs.
-  merge_group:
-  # Allow maintainers to trigger an on-demand rebuild.
+  # Disabled until we are ready to build Ubuntu images.
+  # push:
+  # pull_request:
+  #   branches:
+  #     - main
+  # schedule:
+  #   - cron: "0 1 * * TUE"
+  # merge_group:
   workflow_dispatch:
 
 concurrency:
