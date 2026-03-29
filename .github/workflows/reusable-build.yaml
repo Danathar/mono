@@ -1,7 +1,4 @@
 ---
-# This reusable workflow is the real CI engine behind the distro-specific wrapper
-# workflows. It builds one image per architecture, optionally publishes those
-# images, and finally combines them into a multi-architecture manifest.
 name: Build Image
 on:
   workflow_call:
@@ -48,8 +45,6 @@ on:
         required: false
 
 env:
-  # Shared metadata is stored in environment variables so later steps can refer to
-  # short names instead of repeating long `${{ }}` expressions everywhere.
   DEFAULT_TAG: "latest"
   IMAGE_DESC: "${{inputs.image-desc}}"
   IMAGE_KEYWORDS: "${{inputs.image-keywords}}"
@@ -59,8 +54,6 @@ env:
 
 jobs:
   generate_matrix:
-    # Workflow-call inputs arrive as strings. This job converts the comma-separated
-    # platform list into JSON that GitHub can use as a matrix.
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -70,17 +63,14 @@ jobs:
         env:
           PLATFORMS: "${{ inputs.platforms }}"
         run: |
-          # Turn the comma-separated input into a normal bash array.
+          # turn the comma separated string into a list
           platforms=()
           IFS=',' read -r -a platforms <<< "${PLATFORMS}"
 
-          # Build the JSON structure expected by `strategy.matrix`.
           MATRIX="{\"include\":[]}"
           for platform in "${platforms[@]}"; do
             MATRIX="$(echo "${MATRIX}" | jq ".include += [{\"platform\": \"${platform}\"}]")"
           done
-          # `jq -c` emits compact single-line JSON, which is easier to pass
-          # through a GitHub Actions output variable.
           echo "matrix=$(echo "${MATRIX}" | jq -c '.')" >> $GITHUB_OUTPUT
 
   build_push:
@@ -92,10 +82,8 @@ jobs:
     timeout-minutes: 60
     needs: generate_matrix
     strategy:
-      # Keep building the other architectures even if one of them fails.
       fail-fast: false
       matrix: ${{fromJson(needs.generate_matrix.outputs.matrix)}}
-    # GitHub uses different runner labels for x86_64 and arm64 hosted runners.
     runs-on: ${{ matrix.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     steps:
       - name: Mount BTRFS for podman storage
@@ -103,16 +91,12 @@ jobs:
         uses: ublue-os/container-storage-action@911baca08baf30c8654933e9e9723cb399892140
         continue-on-error: true
         with:
-          # Container image builds can be storage-heavy; this action swaps in a
-          # larger BTRFS-backed location for Podman when enabled.
           target-dir: /var/lib/containers
           mount-opts: compress-force=zstd:2
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          # Keep submodule support enabled so the workflow still works if the repo
-          # grows submodules later.
           submodules: true
 
       - name: Setup Just
@@ -121,15 +105,10 @@ jobs:
       - name: Build image
         id: build
         run: |
-          # The workflow input is the image name (`ubuntu-bootc`), but the local
-          # directory on disk is just `ubuntu/`, `debian/`, and so on.
           sudo $(which just) build "$(sed 's/-bootc//' <<< "${IMAGE_NAME}")"
 
       - name: Rechunk image
-        if: inputs.rechunk
         run: |
-          # Rechunking rewrites the OCI layer layout into a form that behaves
-          # better for OSTree-style distribution and deduplication.
           sudo $(which just) rechunk "$(sed 's/-bootc//' <<< "${IMAGE_NAME}")"
 
       - name: Login to GitHub Container Registry
@@ -138,8 +117,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LOGIN_USER: ${{ github.actor }}
         run: |
-          # Podman performs the actual pushes, while Docker login populates the
-          # auth config expected by some signing tooling.
           echo "${GITHUB_TOKEN}" | sudo podman login -u "${LOGIN_USER}" --password-stdin "ghcr.io"
           echo "${GITHUB_TOKEN}" | docker login -u "${LOGIN_USER}" --password-stdin "ghcr.io" # For cosign
 
@@ -149,8 +126,6 @@ jobs:
       - name: Install Podman from Brew
         if: inputs.publish
         run: |
-          # This is a temporary workaround for an older Podman version on GitHub's
-          # hosted runners.
           /home/linuxbrew/.linuxbrew/bin/brew install podman
 
       - name: Push to GHCR
@@ -164,8 +139,6 @@ jobs:
           MAX_RETRIES: 3
         run: |
           set -x
-          # Retry pushes because registries and hosted runners occasionally fail
-          # transiently. The digest file captures the immutable pushed result.
           # HACK: push a second time so layer annotations are present
           # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
           for i in $(seq "${MAX_RETRIES}"); do
@@ -173,7 +146,6 @@ jobs:
           done
           echo "remote_image_digest=$(< /tmp/digestfile)" | tee "${GITHUB_OUTPUT}"
 
-          # The second push exists only because of the Podman annotation bug noted above.
           for i in $(seq "${MAX_RETRIES}"); do
             sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}" && break || sleep $((5 * i));
           done
@@ -189,9 +161,7 @@ jobs:
           REMOTE_IMAGE_DIGEST: ${{ steps.push.outputs.remote_image_digest }}
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-        run: |
-          # Sign the exact pushed digest, not a mutable tag like `latest`.
-          cosign sign -y --new-bundle-format=false --use-signing-config=false --key env://COSIGN_PRIVATE_KEY "${IMAGE_REGISTRY}/${IMAGE_NAME}@${REMOTE_IMAGE_DIGEST}"
+        run: cosign sign -y --new-bundle-format=false --use-signing-config=false --key env://COSIGN_PRIVATE_KEY "${IMAGE_REGISTRY}/${IMAGE_NAME}@${REMOTE_IMAGE_DIGEST}"
 
       - name: Create Job Outputs
         if: inputs.publish
@@ -201,8 +171,6 @@ jobs:
           DIGEST: ${{ steps.push.outputs.remote_image_digest }}
         run: |
           set -x
-          # Write one tiny artifact per architecture. The later manifest job
-          # downloads these so it knows which digests to combine.
           mkdir -p /tmp/outputs/digests
           echo "${DIGEST}" | tee "/tmp/outputs/digests/${IMAGE_NAME}-${PLATFORM}.txt"
 
@@ -219,7 +187,6 @@ jobs:
   manifest:
     name: Create Manifest
     runs-on: ubuntu-latest
-    # Always run so we can report a clear combined failure if any matrix build broke.
     if: always()
     needs:
       - build_push
@@ -232,7 +199,6 @@ jobs:
       id-token: write
     steps:
       - name: Install dependencies
-        # This job runs inside an Alpine container, so install the CLI tools it needs.
         run: apk add bash coreutils curl docker findutils fuse-overlayfs git grep jq podman sed
 
       - name: Exit on failure
@@ -240,8 +206,6 @@ jobs:
         env:
           JOBS: ${{ toJson(needs) }}
         run: |
-          # Stop immediately if any earlier matrix job failed; otherwise we might
-          # publish a partial manifest and hide the real problem.
           for i in $(jq -r 'to_entries[] | .value.result' <<< "${JOBS}"); do
             if [ "$i" != "success" ] && [ "$i" != "skipped" ]; then
               echo "Status check not okay!"
@@ -261,14 +225,12 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         id: metadata
         with:
-          # Tags are the names end users will pull from the registry.
           tags: |
             type=raw,value=${{ env.DEFAULT_TAG }}
             type=raw,value=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
             type=raw,value={{date 'YYYYMMDD'}}
             type=ref,event=pr
             type=sha,enable=${{ github.event_name == 'pull_request' }}
-          # Labels provide registry/catalog metadata such as description, docs, and logo.
           labels: |
             containers.bootc=1
             io.artifacthub.package.deprecated=false
@@ -290,7 +252,6 @@ jobs:
         if: inputs.publish
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v6
         with:
-          # Download every per-architecture digest artifact into one folder.
           pattern: ${{ env.IMAGE_NAME }}-*
           merge-multiple: true
           path: /tmp/artifacts
@@ -301,7 +262,6 @@ jobs:
         id: load-outputs
         run: |
           set -x
-          # Convert the individual digest files into a compact CSV blob.
           OUTCSV="$(mktemp)"
           for digest_file in /tmp/artifacts/*.txt; do
             # Extract the platform from the file name
@@ -310,7 +270,6 @@ jobs:
             DIGEST="$(< "${digest_file}")"
             echo "${PLATFORM},${IMAGE_NAME},${DIGEST}" | tee -a "${OUTCSV}"
           done
-          # Base32 turns a multi-line file into a single safe output variable.
           echo "OUTPUT_CSV=$(base32 -w 0 < "${OUTCSV}")" | tee -a "${GITHUB_OUTPUT}"
 
       - name: Login to GitHub Container Registry
@@ -318,7 +277,6 @@ jobs:
         env:
           REGISTRY: ghcr.io
         run: |
-          # Authenticate both Podman and Docker because later steps may consult either auth file.
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login -u "${{ github.actor }}" --password-stdin "${REGISTRY}"
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" --password-stdin "${REGISTRY}"
 
@@ -338,42 +296,33 @@ jobs:
         run: |
           set -x
 
-          # Decode the CSV blob back into a temporary file for shell processing.
           OUTPUT_CSV_FILE="$(mktemp)"
           echo "${OUTPUT_CSV}" | base32 -d | tee "${OUTPUT_CSV_FILE}"
 
-          # Figure out which image names appear in the artifact set.
           IMAGES=$(cat "${OUTPUT_CSV_FILE}" | while IFS=$'\n' read -r ENTRY ; do echo "${ENTRY}" | cut -d, -f2 ; done | sort | uniq | tr "\n" " " | sed 's/.$//')
           for TARGET_IMAGE in ${IMAGES} ; do
             TARGET_MANIFEST="${IMAGE_REGISTRY}/${TARGET_IMAGE}"
-            # Start a manifest list that will point at all per-architecture images.
             podman manifest create "${TARGET_MANIFEST}"
 
-            # Gather the architecture list for this image from the CSV file.
-            PLATFORMS=$(grep -F -e ",${TARGET_IMAGE}," "${OUTPUT_CSV_FILE}" | while IFS=$'\n' read -r ENTRY ; do echo "${ENTRY}" | cut -d, -f1 ; done | sort | uniq | tr "\n" " " | sed 's/.$//')
+            PLATFORMS=$(grep -F -e "${IMAGE}" "${OUTPUT_CSV_FILE}" | while IFS=$'\n' read -r ENTRY ; do echo "${ENTRY}" | cut -d, -f1 ; done | sort | uniq | tr "\n" " " | sed 's/.$//')
             for TARGET_PLATFORM in ${PLATFORMS} ; do
               TARGET_DIGEST="$(grep -F -e ",${TARGET_IMAGE}," "${OUTPUT_CSV_FILE}" | grep -F -e "${TARGET_PLATFORM}" | cut -d, -f3 | tr -d "\n")"
-              # Add the already-pushed per-architecture digest into the manifest list.
               podman manifest add "${TARGET_MANIFEST}" "${TARGET_MANIFEST}@${TARGET_DIGEST}" --arch "${TARGET_PLATFORM}"
             done
 
-            # Apply the OCI and ArtifactHub annotations to the manifest index itself.
             while IFS= read -r LABEL; do
               podman manifest annotate --index --annotation "${LABEL}" "${TARGET_MANIFEST}"
             done <<< "${LABELS}"
 
-            # Push every desired tag (`latest`, dated tags, PR tags, and so on).
             while IFS= read -r TAG; do
               podman manifest push --all=false --digestfile=/tmp/digestfile "${TARGET_MANIFEST}" "${TARGET_MANIFEST}:${TAG}"
             done <<< "${TAGS}"
 
-            # HACK: push a second time so layer annotations are present
-            # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
-            # Repeat the push as a workaround for the same Podman annotation issue.
+          # HACK: push a second time so layer annotations are present
+          # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
             while IFS= read -r TAG; do
               podman manifest push --all=false --digestfile=/tmp/digestfile "${TARGET_MANIFEST}" "${TARGET_MANIFEST}:${TAG}"
             done <<< "${TAGS}"
 
-            # Sign the manifest digest so consumers can verify the published image.
             cosign sign -y --new-bundle-format=false --use-signing-config=false --key env://COSIGN_PRIVATE_KEY "${TARGET_MANIFEST}@$(< /tmp/digestfile)"
           done

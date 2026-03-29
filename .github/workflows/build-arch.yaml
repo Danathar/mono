@@ -41,7 +41,6 @@ jobs:
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
       # Arch is currently built only for x86_64 in this repository.
       platforms: amd64
-      # Pull requests should test builds, but only the default branch should
-      # publish or rechunk images.
-      rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      # Disabled until GitHub runners ship a Podman that supports type=image mounts.
+      rechunk: false
       publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
