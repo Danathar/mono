@@ -19,17 +19,15 @@ container_runtime := env("CONTAINER_RUNTIME", `command -v podman >/dev/null 2>&1
 # multi-stage Containerfiles (e.g. `just build arch kde`).
 build $image_name=image_name target="":
     # Building these system images often needs rootful container runtime access.
-    sudo {{container_runtime}} build -f {{image_name}}/Containerfile \
-        {{ if target != "" { "--target " + target } else { "" } }} \
-        -t "${image_name}-bootc:latest" .
+    sudo {{container_runtime}} build -f {{image_name}}/Containerfile {{ if target != "" { "--target " + target } else { "" } }} -t "${image_name}-bootc:latest" .
 
 # Run the built image and forward arbitrary `bootc` subcommands into it.
+# Reuses host devices and container storage so `bootc install` can create
+# loop devices and disk images from inside the container.
 bootc $image_name=image_name $image_tag=image_tag *ARGS:
     sudo {{container_runtime}} run \
         --rm --privileged --pid=host \
         -it \
-        # Reuse host devices and container storage so `bootc install` can create
-        # loop devices and disk images from inside the container.
         {{options}} \
         -v /dev:/dev \
         -e RUST_LOG=debug \
