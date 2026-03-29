@@ -1,7 +1,7 @@
 # Helper stage that carries the shared scripts used by every distro build.
 FROM scratch AS ctx
 
-COPY ../shared/ /shared
+COPY shared/ /shared
 
 # Ubuntu base image used by both the builder and runtime stages.
 FROM docker.io/library/ubuntu:questing AS base

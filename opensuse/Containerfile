@@ -1,7 +1,7 @@
 # Helper stage that carries only the shared scripts.
 FROM scratch AS ctx
 
-COPY ../shared/ /shared
+COPY shared/ /shared
 
 # Base openSUSE Tumbleweed filesystem.
 FROM registry.opensuse.org/opensuse/tumbleweed:latest AS base

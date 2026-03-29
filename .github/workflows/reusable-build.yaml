@@ -311,7 +311,7 @@ jobs:
             TARGET_MANIFEST="${IMAGE_REGISTRY}/${TARGET_IMAGE}"
             podman manifest create "${TARGET_MANIFEST}"
 
-            PLATFORMS=$(grep -F -e "${IMAGE}" "${OUTPUT_CSV_FILE}" | while IFS=$'\n' read -r ENTRY ; do echo "${ENTRY}" | cut -d, -f1 ; done | sort | uniq | tr "\n" " " | sed 's/.$//')
+            PLATFORMS=$(grep -F -e "${TARGET_IMAGE}" "${OUTPUT_CSV_FILE}" | while IFS=$'\n' read -r ENTRY ; do echo "${ENTRY}" | cut -d, -f1 ; done | sort | uniq | tr "\n" " " | sed 's/.$//')
             for TARGET_PLATFORM in ${PLATFORMS} ; do
               TARGET_DIGEST="$(grep -F -e ",${TARGET_IMAGE}," "${OUTPUT_CSV_FILE}" | grep -F -e "${TARGET_PLATFORM}" | cut -d, -f3 | tr -d "\n")"
               podman manifest add "${TARGET_MANIFEST}" "${TARGET_MANIFEST}@${TARGET_DIGEST}" --arch "${TARGET_PLATFORM}"

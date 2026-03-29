@@ -2,7 +2,7 @@
 # `/ctx` so they can reuse repository scripts without copying the whole repo in.
 FROM scratch AS ctx
 
-COPY ../shared/ /shared
+COPY shared/ /shared
 
 # Clean Arch base image used by both the builder and the final system stage.
 FROM docker.io/archlinux/archlinux:latest AS archbase

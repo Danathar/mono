@@ -1,7 +1,7 @@
 # Helper stage that exposes the shared scripts to later stages.
 FROM scratch AS ctx
 
-COPY ../shared/ /shared
+COPY shared/ /shared
 
 # Debian unstable base image for both build and runtime stages.
 FROM docker.io/library/debian:unstable AS base
