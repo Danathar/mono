@@ -68,22 +68,33 @@ just disk-image 'ghcr.io/<your-user>/debian' latest
 
 `just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/debian` here, not `ghcr.io/<your-user>/debian-bootc`.
 
-If you need direct `root` access on first boot, build a temporary derived image with a hashed password before generating the disk image:
+If you want first-boot access plus a pre-created admin user from the published GHCR image, build a temporary derived image before generating the disk image:
 
 ```bash
-ROOT_HASH="$(openssl passwd -6 '<temporary-password>')"
-cat > Containerfile.root <<'EOF'
+ROOT_HASH="$(openssl passwd -6 '<temporary-root-password>')"
+USER_HASH="$(openssl passwd -6 '<temporary-user-password>')"
+cat > Containerfile.access <<'EOF'
 FROM ghcr.io/<your-user>/debian-bootc:latest
 ARG ROOT_HASH
-RUN echo "root:${ROOT_HASH}" | chpasswd -e
+ARG USERNAME
+ARG USER_HASH
+RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
+    useradd -m -u 1000 -G sudo -s /bin/bash "${USERNAME}" && \
+    echo "${USERNAME}:${USER_HASH}" | chpasswd -e
 EOF
 
-podman build --build-arg ROOT_HASH="${ROOT_HASH}" \
-  -t ghcr.io/<your-user>/debian-bootc:with-root \
-  -f Containerfile.root .
+sudo podman build \
+  --build-arg ROOT_HASH="${ROOT_HASH}" \
+  --build-arg USERNAME='<username>' \
+  --build-arg USER_HASH="${USER_HASH}" \
+  -t ghcr.io/<your-user>/debian-bootc:with-access \
+  -f Containerfile.access .
+
+truncate -s 100G bootable.img
+just disk-image 'ghcr.io/<your-user>/debian' with-access
 ```
 
-Use that derived image only long enough to complete first-boot setup, then remove or rotate the root password.
+Use `sudo podman build` so the derived image lands in the rootful Podman store that `just disk-image` uses. Treat that `with-access` image as temporary and remove or rotate both passwords after first boot.
 
 ## Creating a VM
 
@@ -164,9 +175,9 @@ sync
 
 ## Post-Installation / First Boot
 
-> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or use the temporary root-password flow in the "Building" section.
+> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or use the temporary access-image flow in the "Building" section.
 
-If you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
+If you did not already pre-create a user, and you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
 
 ```bash
 # Ensure the user has UID 1000 to use the pre-configured Homebrew
