@@ -79,9 +79,10 @@ Use that derived image only long enough to complete first-boot setup, then remov
 
 ## Creating a VM
 
-### 1. Build a disk image
+### 1. Build the container image and generate a disk image
 
 ```bash
+just build debian
 truncate -s 100G bootable.img
 just disk-image debian
 mkdir -p output

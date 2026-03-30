@@ -86,9 +86,10 @@ just build arch 2>&1 | tee build.log
 
 ## Creating a VM
 
-### 1. Build a disk image
+### 1. Build the container image and generate a disk image
 
 ```bash
+just build arch
 truncate -s 100G bootable.img
 just disk-image arch
 mkdir -p output
