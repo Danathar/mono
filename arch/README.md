@@ -69,7 +69,8 @@ ARG ROOT_HASH
 ARG USERNAME
 ARG USER_HASH
 RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
-    useradd -m -u 1000 -G wheel -s /bin/bash "${USERNAME}" && \
+    install -d -m 0755 /var/home && \
+    useradd -m -d "/var/home/${USERNAME}" -u 1000 -G wheel -s /bin/bash "${USERNAME}" && \
     echo "${USERNAME}:${USER_HASH}" | chpasswd -e && \
     mkdir -p /etc/sudoers.d && \
     echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel && \

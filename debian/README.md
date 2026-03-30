@@ -67,7 +67,8 @@ ARG ROOT_HASH
 ARG USERNAME
 ARG USER_HASH
 RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
-    useradd -m -u 1000 -G sudo -s /bin/bash "${USERNAME}" && \
+    install -d -m 0755 /var/home && \
+    useradd -m -d "/var/home/${USERNAME}" -u 1000 -G sudo -s /bin/bash "${USERNAME}" && \
     echo "${USERNAME}:${USER_HASH}" | chpasswd -e
 EOF
 
