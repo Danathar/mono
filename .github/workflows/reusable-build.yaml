@@ -143,6 +143,7 @@ jobs:
         run: |
           set -x
           DIGESTFILE="$(mktemp)"
+          chmod 0666 "${DIGESTFILE}"
 
           push_with_retry() {
             local attempt
@@ -150,6 +151,7 @@ jobs:
 
             for attempt in $(seq "${MAX_RETRIES}"); do
               : > "${DIGESTFILE}"
+              chmod 0666 "${DIGESTFILE}"
 
               if sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile="${DIGESTFILE}" "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${target}"; then
                 if [ -s "${DIGESTFILE}" ]; then
