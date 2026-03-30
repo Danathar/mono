@@ -142,16 +142,36 @@ jobs:
           MAX_RETRIES: 3
         run: |
           set -x
+          push_with_retry() {
+            local attempt
+            local target="${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}"
+
+            for attempt in $(seq "${MAX_RETRIES}"); do
+              rm -f /tmp/digestfile
+
+              if sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${target}"; then
+                if [ -s /tmp/digestfile ]; then
+                  return 0
+                fi
+
+                echo "podman push succeeded but did not write /tmp/digestfile" >&2
+              fi
+
+              if [ "${attempt}" -eq "${MAX_RETRIES}" ]; then
+                echo "Failed to push ${target} after ${MAX_RETRIES} attempts" >&2
+                return 1
+              fi
+
+              sleep $((5 * attempt))
+            done
+          }
+
           # HACK: push a second time so layer annotations are present
           # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
-          for i in $(seq "${MAX_RETRIES}"); do
-            sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}" && break || sleep $((5 * i));
-          done
+          push_with_retry
           echo "remote_image_digest=$(< /tmp/digestfile)" | tee "${GITHUB_OUTPUT}"
 
-          for i in $(seq "${MAX_RETRIES}"); do
-            sudo /home/linuxbrew/.linuxbrew/bin/podman push --digestfile=/tmp/digestfile "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}-${PLATFORM}" && break || sleep $((5 * i));
-          done
+          push_with_retry
           echo "remote_image_digest=$(< /tmp/digestfile)" | tee "${GITHUB_OUTPUT}"
 
       - name: Install Cosign
