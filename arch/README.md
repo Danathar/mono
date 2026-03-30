@@ -62,6 +62,14 @@ just build arch base
 just disk-image arch
 ```
 
+**Generate a bootable disk image from the published GHCR image instead of a local build:**
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+just disk-image 'ghcr.io/<your-user>/arch' latest
+```
+
+`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/arch` here, not `ghcr.io/<your-user>/arch-bootc`.
+
 If you need direct `root` access on first boot, build a temporary derived image with a hashed password before generating the disk image:
 
 ```bash
@@ -92,6 +100,16 @@ just build arch 2>&1 | tee build.log
 just build arch
 truncate -s 100G bootable.img
 just disk-image arch
+mkdir -p output
+qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/arch-bootc-100g.qcow2
+```
+
+Or generate the disk image from the already-published GHCR image:
+
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+truncate -s 100G bootable.img
+just disk-image 'ghcr.io/<your-user>/arch' latest
 mkdir -p output
 qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/arch-bootc-100g.qcow2
 ```
@@ -130,6 +148,14 @@ Then run the `virt-install` command again.
 just build arch
 truncate -s 100G bootable.img
 just disk-image arch
+```
+
+Or use the already-published GHCR image:
+
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+truncate -s 100G bootable.img
+just disk-image 'ghcr.io/<your-user>/arch' latest
 ```
 
 2. Identify the target disk (example: `/dev/nvme0n1`):

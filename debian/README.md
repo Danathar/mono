@@ -60,6 +60,14 @@ just build debian base
 just disk-image debian
 ```
 
+**Generate a bootable disk image from the published GHCR image instead of a local build:**
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+just disk-image 'ghcr.io/<your-user>/debian' latest
+```
+
+`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/debian` here, not `ghcr.io/<your-user>/debian-bootc`.
+
 If you need direct `root` access on first boot, build a temporary derived image with a hashed password before generating the disk image:
 
 ```bash
@@ -85,6 +93,16 @@ Use that derived image only long enough to complete first-boot setup, then remov
 just build debian
 truncate -s 100G bootable.img
 just disk-image debian
+mkdir -p output
+qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/debian-bootc-100g.qcow2
+```
+
+Or generate the disk image from the already-published GHCR image:
+
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+truncate -s 100G bootable.img
+just disk-image 'ghcr.io/<your-user>/debian' latest
 mkdir -p output
 qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/debian-bootc-100g.qcow2
 ```
@@ -121,6 +139,14 @@ virsh -c qemu:///session undefine debian-bootc-local --nvram || true
 just build debian
 truncate -s 100G bootable.img
 just disk-image debian
+```
+
+Or use the already-published GHCR image:
+
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+truncate -s 100G bootable.img
+just disk-image 'ghcr.io/<your-user>/debian' latest
 ```
 
 2. Identify the target disk (example: `/dev/nvme0n1`):
