@@ -28,16 +28,44 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 FROM debbase AS common
 COPY --from=builder /output /
 
-# Install core base packages from external file.
+# Install core base packages inline so the Debian image tracks upstream's
+# `systemd-boot*` package selection.
 # The kernel is copied next to its module directory because later boot tooling
 # expects to find `vmlinuz` there.
-COPY debian/packages-base.txt /tmp/packages-base.txt
 RUN --mount=type=tmpfs,dst=/tmp/apt-cache --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
     apt update -y && \
-    apt install -y $(cat /tmp/packages-base.txt) && \
+    apt install -y \
+        btrfs-progs \
+        curl \
+        dbus \
+        distrobox \
+        dosfstools \
+        dracut \
+        e2fsprogs \
+        fdisk \
+        firewalld \
+        firmware-linux-free \
+        fwupd \
+        git \
+        iproute2 \
+        libostree-dev \
+        linux-image-generic \
+        network-manager \
+        ntfs-3g \
+        openssh-server \
+        podman \
+        rsync \
+        skopeo \
+        smartmontools \
+        sudo \
+        systemd \
+        systemd-boot* \
+        vim \
+        wget \
+        xfsprogs && \
     cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
     apt clean -y && \
-    rm /tmp/packages-base.txt
+    rm -rf /var/lib/apt/lists/*
 
 # Generate an initramfs that contains the bootc boot logic.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
