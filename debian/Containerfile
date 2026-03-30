@@ -24,8 +24,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     curl --proto '=https' --tlsv1.2 -sSf "https://sh.rustup.rs" | sh -s -- --profile minimal -y && \
     sh -c ". ${RUSTUP_HOME}/env ; /ctx/shared/build.sh"
 
-# Final bootable operating-system image.
-FROM debbase AS base
+# Common pre-finalization stage shared by the CLI base image and the KDE layer.
+FROM debbase AS common
 COPY --from=builder /output /
 
 # Install core base packages from external file.
@@ -44,6 +44,9 @@ RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/shared/initramfs.sh
 
+# Final bootable operating-system image.
+FROM common AS base
+
 # Put future home directories under `/var/home`, then normalize the root
 # filesystem to the immutable bootc layout.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
@@ -60,7 +63,7 @@ RUN sed -i 's/^hosts: .*/hosts: files mdns_minimal [NOTFOUND=return] dns myhostn
     systemctl enable ssh
 
 # Source profile.d scripts for non-login shells.
-RUN echo '\n# Source profile.d scripts for non-login shells\nfor script in /etc/profile.d/*.sh; do\n  [ -r "$script" ] && . "$script"\ndone\nunset script' >> /etc/bash.bashrc
+RUN echo -e '\n# Source profile.d scripts for non-login shells\nfor script in /etc/profile.d/*.sh; do\n  [ -r "$script" ] && . "$script"\ndone\nunset script' >> /etc/bash.bashrc
 
 # OCI metadata consumed by bootc-aware tooling.
 LABEL containers.bootc 1
@@ -74,15 +77,43 @@ RUN systemctl preset brew-setup.service brew-update.timer brew-upgrade.timer
 
 
 # --- Desktop Layer ---
-FROM base AS kde
+FROM common AS kde
 
 # Install KDE and desktop packages from external file.
 COPY debian/packages-kde.txt /tmp/packages-kde.txt
-RUN --mount=type=tmpfs,dst=/tmp/apt-cache \
+RUN --mount=type=tmpfs,dst=/tmp/apt-cache --mount=type=tmpfs,dst=/root \
     apt update -y && \
     apt install -y $(cat /tmp/packages-kde.txt) && \
     apt clean -y && \
     rm /tmp/packages-kde.txt
+
+# Put future home directories under `/var/home`, then normalize the root
+# filesystem to the immutable bootc layout after all Debian packages are installed.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
+    /ctx/shared/bootc-rootfs.sh
+
+# Remove hardcoded root password and lock it for security.
+RUN passwd -l root
+
+# Network and basic services configuration.
+RUN sed -i 's/^hosts: .*/hosts: files mdns_minimal [NOTFOUND=return] dns myhostname/' /etc/nsswitch.conf && \
+    systemctl enable NetworkManager && \
+    systemctl enable firewalld && \
+    systemctl enable ssh
+
+# Source profile.d scripts for non-login shells.
+RUN echo -e '\n# Source profile.d scripts for non-login shells\nfor script in /etc/profile.d/*.sh; do\n  [ -r "$script" ] && . "$script"\ndone\nunset script' >> /etc/bash.bashrc
+
+# OCI metadata consumed by bootc-aware tooling.
+LABEL containers.bootc 1
+
+# Validate the bootc layout before layering extra runtime conveniences.
+RUN bootc container lint
+
+# Copy ublue-os/brew and enable its systemd services.
+COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
+RUN systemctl preset brew-setup.service brew-update.timer brew-upgrade.timer
 
 # Additional desktop services.
 RUN systemctl enable power-profiles-daemon && \
