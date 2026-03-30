@@ -23,7 +23,7 @@ This image includes the following opinionated changes:
 - `NetworkManager` installed and enabled for first-boot DHCP
 - `firewalld` installed and enabled
 - `sudo` installed
-- Hardcoded root password is locked for security (configure via cloud-init or SSH keys)
+- Root password is locked by default for security (configure via cloud-init, SSH keys, or a temporary derived image)
 - Homebrew integration via `ublue-os/brew` (pre-configured to extract on first boot for UID 1000)
 
 ### KDE desktop layer (built on top of base)
@@ -120,9 +120,26 @@ sync
 
 ## Post-Installation / First Boot
 
-> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, or inject an SSH key during image generation.
+> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or build a temporary derived image with a root password for first boot.
 
-If you have root access (e.g. via virtual console or live media), create your own admin account:
+If you need direct `root` access on first boot, create a temporary derived image with a hashed password before generating the disk image:
+
+```bash
+ROOT_HASH="$(openssl passwd -6 '<temporary-password>')"
+cat > Containerfile.root <<'EOF'
+FROM ghcr.io/<your-user>/debian-bootc:latest
+ARG ROOT_HASH
+RUN echo "root:${ROOT_HASH}" | chpasswd -e
+EOF
+
+podman build --build-arg ROOT_HASH="${ROOT_HASH}" \
+  -t ghcr.io/<your-user>/debian-bootc:with-root \
+  -f Containerfile.root .
+```
+
+Use that derived image only long enough to complete first-boot setup, then remove or rotate the root password.
+
+If you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
 
 ```bash
 # Ensure the user has UID 1000 to use the pre-configured Homebrew
