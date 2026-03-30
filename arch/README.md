@@ -78,7 +78,8 @@ RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
 EOF
 
 # If Podman fails with `/bin/sh: ... libc.so.6 ... Permission denied` on your
-# host, rerun this build with `--security-opt label=disable`.
+# host, rerun this build as `sudo podman build --security-opt label=disable ...`.
+# The flag belongs after `build`, not before it.
 sudo podman build \
   --build-arg ROOT_HASH="${ROOT_HASH}" \
   --build-arg USERNAME='<username>' \
@@ -91,6 +92,10 @@ just disk-image 'ghcr.io/<your-user>/arch' with-access
 ```
 
 `just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/arch` here, not `ghcr.io/<your-user>/arch-bootc`.
+
+Run these commands from the repository root. `truncate -s 100G bootable.img` creates a sparse disk file at `./bootable.img`, and `just disk-image ...` bind-mounts the current directory into the installer container as `/data`. Inside that container, `bootc install to-disk --via-loopback /data/bootable.img` is operating on the same host file as `./bootable.img`, attaching it to a loop device, partitioning it, formatting it, and installing the OS into it.
+
+The `ghcr.io/<your-user>/arch-bootc:with-access` name can refer to a local image tag; you do not need to push it first. If you build that derived image locally with `sudo podman build ... -t ghcr.io/<your-user>/arch-bootc:with-access ...`, then `just disk-image 'ghcr.io/<your-user>/arch' with-access` will use that image from the rootful Podman store. If `bootable.img` does not exist yet, `just disk-image` creates a default 20G image automatically.
 
 Use `sudo podman build` so the derived image lands in the rootful Podman store that `just disk-image` uses. Treat that `with-access` image as temporary and remove or rotate both passwords after first boot.
 
