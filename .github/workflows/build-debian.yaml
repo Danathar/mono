@@ -8,14 +8,13 @@ permissions:
   id-token: write
 
 on:
-  # Disabled until we are ready to build Debian images.
-  # push:
-  # pull_request:
-  #   branches:
-  #     - main
-  # schedule:
-  #   - cron: "0 1 * * TUE"
-  # merge_group:
+  push:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 1 * * TUE"
+  merge_group:
   workflow_dispatch:
 
 concurrency:
@@ -33,8 +32,7 @@ jobs:
       image-desc: "Experimental debian-bootc POC image"
       image-keywords: "bootc,debian"
       image-logo: "https://avatars.githubusercontent.com/u/230667510?s=400&u=cb912a5db49aee164a609a0fb4967d2d8170feb9&v=4"
-      # Build both amd64 and arm64 variants.
-      platforms: amd64,arm64
-      # Only default-branch non-PR runs publish or rechunk.
-      rechunk: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      platforms: amd64
+      # Disabled until GitHub runners ship a Podman that supports type=image mounts.
+      rechunk: false
       publish: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

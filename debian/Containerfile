@@ -4,10 +4,10 @@ FROM scratch AS ctx
 COPY shared/ /shared
 
 # Debian unstable base image for both build and runtime stages.
-FROM docker.io/library/debian:unstable AS base
+FROM docker.io/library/debian:unstable AS debbase
 
 # Builder stage: keep compilers and build dependencies out of the final image.
-FROM base AS builder
+FROM debbase AS builder
 
 # Install toolchain packages and ostree/dracut dependencies needed to build bootc.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
@@ -24,17 +24,20 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     curl --proto '=https' --tlsv1.2 -sSf "https://sh.rustup.rs" | sh -s -- --profile minimal -y && \
     sh -c ". ${RUSTUP_HOME}/env ; /ctx/shared/build.sh"
 
-# Final bootable image stage.
-FROM base AS system
+# Final bootable operating-system image.
+FROM debbase AS base
 COPY --from=builder /output /
 
-# Install the kernel, boot loader pieces, filesystem tools, and runtime packages.
+# Install core base packages from external file.
 # The kernel is copied next to its module directory because later boot tooling
 # expects to find `vmlinuz` there.
-RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot apt update -y && \
-  apt install -y btrfs-progs dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic skopeo systemd systemd-boot* xfsprogs libostree-dev && \
-  cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
-  apt clean -y
+COPY debian/packages-base.txt /tmp/packages-base.txt
+RUN --mount=type=tmpfs,dst=/tmp/apt-cache --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
+    apt update -y && \
+    apt install -y $(cat /tmp/packages-base.txt) && \
+    cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
+    apt clean -y && \
+    rm /tmp/packages-base.txt
 
 # Generate an initramfs that contains the bootc boot logic.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
@@ -47,8 +50,52 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
     /ctx/shared/bootc-rootfs.sh
 
+# Remove hardcoded root password and lock it for security.
+RUN passwd -l root
+
+# Network and basic services configuration.
+RUN sed -i 's/^hosts: .*/hosts: files mdns_minimal [NOTFOUND=return] dns myhostname/' /etc/nsswitch.conf && \
+    systemctl enable NetworkManager && \
+    systemctl enable firewalld && \
+    systemctl enable ssh
+
+# Source profile.d scripts for non-login shells.
+RUN echo '\n# Source profile.d scripts for non-login shells\nfor script in /etc/profile.d/*.sh; do\n  [ -r "$script" ] && . "$script"\ndone\nunset script' >> /etc/bash.bashrc
+
 # OCI metadata consumed by bootc-aware tooling.
 LABEL containers.bootc 1
 
 # Validate the finished container before the build succeeds.
+RUN bootc container lint
+
+# Copy ublue-os/brew and enable its systemd services.
+COPY --from=ghcr.io/ublue-os/brew:latest /system_files /
+RUN systemctl preset brew-setup.service brew-update.timer brew-upgrade.timer
+
+
+# --- Desktop Layer ---
+FROM base AS kde
+
+# Install KDE and desktop packages from external file.
+COPY debian/packages-kde.txt /tmp/packages-kde.txt
+RUN --mount=type=tmpfs,dst=/tmp/apt-cache \
+    apt update -y && \
+    apt install -y $(cat /tmp/packages-kde.txt) && \
+    apt clean -y && \
+    rm /tmp/packages-kde.txt
+
+# Additional desktop services.
+RUN systemctl enable power-profiles-daemon && \
+    systemctl enable bluetooth && \
+    systemctl enable avahi-daemon && \
+    systemctl enable cups
+
+# Enable graphical login with SDDM for KDE.
+RUN systemctl enable sddm && \
+    systemctl set-default graphical.target
+
+# Pre-configure Flathub system-wide remote.
+RUN mkdir -p /etc/flatpak/remotes.d && \
+    curl -o /etc/flatpak/remotes.d/flathub.flatpakrepo https://flathub.org/repo/flathub.flatpakrepo
+
 RUN bootc container lint

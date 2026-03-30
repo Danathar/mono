@@ -5,6 +5,7 @@ This is a monorepo for all the Bootcrew images! These are multiple different con
 ## Image Documentation
 
 - [Arch Linux](arch/README.md)
+- [Debian](debian/README.md)
 
 ## Building and Running
 
