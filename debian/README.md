@@ -26,31 +26,18 @@ This image includes the following opinionated changes:
 - Root password is locked by default for security (configure via cloud-init, SSH keys, or a temporary derived image)
 - Homebrew integration via `ublue-os/brew` (pre-configured to extract on first boot for UID 1000)
 
-### KDE desktop layer (built on top of base)
-
-- KDE Plasma desktop + SDDM display manager enabled (graphical login by default)
-- KDE standard application suite via `kde-standard`
-- Mesa Vulkan drivers
-- Essential fonts (`fonts-noto`, `fonts-noto-cjk`, `fonts-noto-color-emoji`)
-- GStreamer media codecs (`gstreamer1.0-plugins-*`, `gstreamer1.0-libav`)
-- Bluetooth support installed and enabled (`bluez`)
-- Archiving tools (`unzip`, `unrar`, `p7zip-full`)
-- Network discovery / mDNS configured and enabled (`avahi-daemon`, `libnss-mdns`)
-- Printing stack installed and enabled (`cups`, `cups-pdf`)
-- `power-profiles-daemon` installed and enabled
-- `xdg-user-dirs`, `firefox-esr`, `flatpak`, `konsole` installed
-- Flathub remote pre-configured system-wide
+This Debian image is intentionally base/CLI-only. It does not include a desktop environment or display manager.
 
 ## Building
 
 From the repository root:
 
-**Build the KDE desktop image (default, last stage):**
+**Build the Debian base image (default and only published stage):**
 ```bash
 just build debian
 ```
 
-**Build the base image only (CLI, no desktop):**
+**Explicitly build the named `base` stage (equivalent):**
 ```bash
 just build debian base
 ```
