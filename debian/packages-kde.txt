@@ -1,7 +1,7 @@
 avahi-daemon
 bluez
 cups
-cups-pdf
+printer-driver-cups-pdf
 firefox-esr
 flatpak
 fonts-noto
@@ -21,7 +21,7 @@ plasma-desktop
 plasma-workspace
 power-profiles-daemon
 sddm
-unrar
+unrar-free
 unzip
 xdg-user-dirs
 xserver-xorg
