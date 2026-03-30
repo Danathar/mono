@@ -60,6 +60,23 @@ just build debian base
 just disk-image debian
 ```
 
+If you need direct `root` access on first boot, build a temporary derived image with a hashed password before generating the disk image:
+
+```bash
+ROOT_HASH="$(openssl passwd -6 '<temporary-password>')"
+cat > Containerfile.root <<'EOF'
+FROM ghcr.io/<your-user>/debian-bootc:latest
+ARG ROOT_HASH
+RUN echo "root:${ROOT_HASH}" | chpasswd -e
+EOF
+
+podman build --build-arg ROOT_HASH="${ROOT_HASH}" \
+  -t ghcr.io/<your-user>/debian-bootc:with-root \
+  -f Containerfile.root .
+```
+
+Use that derived image only long enough to complete first-boot setup, then remove or rotate the root password.
+
 ## Creating a VM
 
 ### 1. Build a disk image
@@ -120,24 +137,7 @@ sync
 
 ## Post-Installation / First Boot
 
-> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or build a temporary derived image with a root password for first boot.
-
-If you need direct `root` access on first boot, create a temporary derived image with a hashed password before generating the disk image:
-
-```bash
-ROOT_HASH="$(openssl passwd -6 '<temporary-password>')"
-cat > Containerfile.root <<'EOF'
-FROM ghcr.io/<your-user>/debian-bootc:latest
-ARG ROOT_HASH
-RUN echo "root:${ROOT_HASH}" | chpasswd -e
-EOF
-
-podman build --build-arg ROOT_HASH="${ROOT_HASH}" \
-  -t ghcr.io/<your-user>/debian-bootc:with-root \
-  -f Containerfile.root .
-```
-
-Use that derived image only long enough to complete first-boot setup, then remove or rotate the root password.
+> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or use the temporary root-password flow in the "Building" section.
 
 If you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
 

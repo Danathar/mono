@@ -11,10 +11,14 @@ permissions:
 on:
   # Build every push so branches stay continuously validated.
   push:
+    paths-ignore:
+      - '**/*.md'
   # Validate pull requests aimed at `main`.
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
   # Rebuild weekly to pick up fresh Arch packages even if the repo did not change.
   schedule:
     - cron: "0 1 * * TUE"

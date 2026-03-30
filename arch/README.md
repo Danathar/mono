@@ -62,6 +62,23 @@ just build arch base
 just disk-image arch
 ```
 
+If you need direct `root` access on first boot, build a temporary derived image with a hashed password before generating the disk image:
+
+```bash
+ROOT_HASH="$(openssl passwd -6 '<temporary-password>')"
+cat > Containerfile.root <<'EOF'
+FROM ghcr.io/<your-user>/arch-bootc:latest
+ARG ROOT_HASH
+RUN echo "root:${ROOT_HASH}" | chpasswd -e
+EOF
+
+podman build --build-arg ROOT_HASH="${ROOT_HASH}" \
+  -t ghcr.io/<your-user>/arch-bootc:with-root \
+  -f Containerfile.root .
+```
+
+Use that derived image only long enough to complete first-boot setup, then remove or rotate the root password.
+
 If you want log files you can tail:
 ```bash
 just build arch 2>&1 | tee build.log
@@ -129,29 +146,12 @@ sync
 
 4. Reboot and boot from that disk.
    - On the first boot after installation, the system will prompt you to select your timezone before proceeding to the graphical login.
-   - If you did not pre-create a user, inject a temporary root password into a derived image before installation so you can log in on a virtual console (usually `Ctrl`+`Alt`+`F3`) on first boot.
+   - If you did not pre-create a user, use the temporary root-password flow in the "Building" section before installation so you can log in on a virtual console (usually `Ctrl`+`Alt`+`F3`) on first boot.
    - Add your user using the commands detailed in the "Post-Installation" section below, then remove or rotate the temporary root password.
 
 ## Post-Installation / First Boot
 
-> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or build a temporary derived image with a root password for first boot.
-
-If you need direct `root` access on first boot, create a temporary derived image with a hashed password before generating the disk image:
-
-```bash
-ROOT_HASH="$(openssl passwd -6 '<temporary-password>')"
-cat > Containerfile.root <<'EOF'
-FROM ghcr.io/<your-user>/arch-bootc:latest
-ARG ROOT_HASH
-RUN echo "root:${ROOT_HASH}" | chpasswd -e
-EOF
-
-podman build --build-arg ROOT_HASH="${ROOT_HASH}" \
-  -t ghcr.io/<your-user>/arch-bootc:with-root \
-  -f Containerfile.root .
-```
-
-Use that derived image only long enough to complete first-boot setup, then remove or rotate the root password.
+> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or use the temporary root-password flow in the "Building" section.
 
 If you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
 
