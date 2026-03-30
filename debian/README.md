@@ -72,6 +72,8 @@ RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
     echo "${USERNAME}:${USER_HASH}" | chpasswd -e
 EOF
 
+# If Podman fails with `/bin/sh: ... libc.so.6 ... Permission denied` on your
+# host, rerun this build with `--security-opt label=disable`.
 sudo podman build \
   --build-arg ROOT_HASH="${ROOT_HASH}" \
   --build-arg USERNAME='<username>' \

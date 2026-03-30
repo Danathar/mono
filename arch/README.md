@@ -77,6 +77,8 @@ RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
     chmod 0440 /etc/sudoers.d/10-wheel
 EOF
 
+# If Podman fails with `/bin/sh: ... libc.so.6 ... Permission denied` on your
+# host, rerun this build with `--security-opt label=disable`.
 sudo podman build \
   --build-arg ROOT_HASH="${ROOT_HASH}" \
   --build-arg USERNAME='<username>' \
