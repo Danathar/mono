@@ -55,22 +55,10 @@ just build debian
 just build debian base
 ```
 
-**Generate a bootable disk image:**
-```bash
-just disk-image debian
-```
+**Recommended: generate a bootable disk image from the published GHCR image with a temporary `root` password and one pre-created admin user:**
 
-**Generate a bootable disk image from the published GHCR image instead of a local build:**
 ```bash
 sudo podman login ghcr.io  # only needed if the package is private
-just disk-image 'ghcr.io/<your-user>/debian' latest
-```
-
-`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/debian` here, not `ghcr.io/<your-user>/debian-bootc`.
-
-If you want first-boot access plus a pre-created admin user from the published GHCR image, build a temporary derived image before generating the disk image:
-
-```bash
 ROOT_HASH="$(openssl passwd -6 '<temporary-root-password>')"
 USER_HASH="$(openssl passwd -6 '<temporary-user-password>')"
 cat > Containerfile.access <<'EOF'
@@ -94,26 +82,28 @@ truncate -s 100G bootable.img
 just disk-image 'ghcr.io/<your-user>/debian' with-access
 ```
 
+`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/debian` here, not `ghcr.io/<your-user>/debian-bootc`.
+
 Use `sudo podman build` so the derived image lands in the rootful Podman store that `just disk-image` uses. Treat that `with-access` image as temporary and remove or rotate both passwords after first boot.
+
+**If you do not want pre-created credentials, you can still generate a disk image directly:**
+```bash
+just disk-image debian
+```
+
+Or from the published GHCR image:
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+just disk-image 'ghcr.io/<your-user>/debian' latest
+```
 
 ## Creating a VM
 
-### 1. Build the container image and generate a disk image
+### 1. Generate the disk image
 
 ```bash
-just build debian
-truncate -s 100G bootable.img
-just disk-image debian
-mkdir -p output
-qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/debian-bootc-100g.qcow2
-```
-
-Or generate the disk image from the already-published GHCR image:
-
-```bash
-sudo podman login ghcr.io  # only needed if the package is private
-truncate -s 100G bootable.img
-just disk-image 'ghcr.io/<your-user>/debian' latest
+# Run the recommended access-image flow from the "Building" section first.
+# That produces bootable.img with a temporary root password and one admin user.
 mkdir -p output
 qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/debian-bootc-100g.qcow2
 ```
@@ -145,20 +135,7 @@ virsh -c qemu:///session undefine debian-bootc-local --nvram || true
 
 ## Installing on Bare Metal
 
-1. Build the container image and generate a bootable raw disk image:
-```bash
-just build debian
-truncate -s 100G bootable.img
-just disk-image debian
-```
-
-Or use the already-published GHCR image:
-
-```bash
-sudo podman login ghcr.io  # only needed if the package is private
-truncate -s 100G bootable.img
-just disk-image 'ghcr.io/<your-user>/debian' latest
-```
+1. Generate `bootable.img` using the recommended access-image flow from the "Building" section.
 
 2. Identify the target disk (example: `/dev/nvme0n1`):
 ```bash
@@ -175,9 +152,9 @@ sync
 
 ## Post-Installation / First Boot
 
-> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or use the temporary access-image flow in the "Building" section.
+> The recommended flow in the "Building" section pre-creates `root` plus one admin user. Rotate or remove those temporary passwords after first boot.
 
-If you did not already pre-create a user, and you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
+If you used a plain image without pre-created credentials, and you have root access (for example via an injected SSH key or live media), create your own admin account:
 
 ```bash
 # Ensure the user has UID 1000 to use the pre-configured Homebrew

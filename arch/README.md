@@ -57,22 +57,10 @@ just build arch
 just build arch base
 ```
 
-**Generate a bootable disk image:**
-```bash
-just disk-image arch
-```
+**Recommended: generate a bootable disk image from the published GHCR image with a temporary `root` password and one pre-created admin user:**
 
-**Generate a bootable disk image from the published GHCR image instead of a local build:**
 ```bash
 sudo podman login ghcr.io  # only needed if the package is private
-just disk-image 'ghcr.io/<your-user>/arch' latest
-```
-
-`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/arch` here, not `ghcr.io/<your-user>/arch-bootc`.
-
-If you want first-boot access plus a pre-created admin user from the published GHCR image, build a temporary derived image before generating the disk image:
-
-```bash
 ROOT_HASH="$(openssl passwd -6 '<temporary-root-password>')"
 USER_HASH="$(openssl passwd -6 '<temporary-user-password>')"
 cat > Containerfile.access <<'EOF'
@@ -99,7 +87,20 @@ truncate -s 100G bootable.img
 just disk-image 'ghcr.io/<your-user>/arch' with-access
 ```
 
+`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/arch` here, not `ghcr.io/<your-user>/arch-bootc`.
+
 Use `sudo podman build` so the derived image lands in the rootful Podman store that `just disk-image` uses. Treat that `with-access` image as temporary and remove or rotate both passwords after first boot.
+
+**If you do not want pre-created credentials, you can still generate a disk image directly:**
+```bash
+just disk-image arch
+```
+
+Or from the published GHCR image:
+```bash
+sudo podman login ghcr.io  # only needed if the package is private
+just disk-image 'ghcr.io/<your-user>/arch' latest
+```
 
 If you want log files you can tail:
 ```bash
@@ -108,22 +109,11 @@ just build arch 2>&1 | tee build.log
 
 ## Creating a VM
 
-### 1. Build the container image and generate a disk image
+### 1. Generate the disk image
 
 ```bash
-just build arch
-truncate -s 100G bootable.img
-just disk-image arch
-mkdir -p output
-qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/arch-bootc-100g.qcow2
-```
-
-Or generate the disk image from the already-published GHCR image:
-
-```bash
-sudo podman login ghcr.io  # only needed if the package is private
-truncate -s 100G bootable.img
-just disk-image 'ghcr.io/<your-user>/arch' latest
+# Run the recommended access-image flow from the "Building" section first.
+# That produces bootable.img with a temporary root password and one admin user.
 mkdir -p output
 qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/arch-bootc-100g.qcow2
 ```
@@ -157,20 +147,7 @@ Then run the `virt-install` command again.
 
 ## Installing on Bare Metal
 
-1. Build the container image and generate a bootable raw disk image:
-```bash
-just build arch
-truncate -s 100G bootable.img
-just disk-image arch
-```
-
-Or use the already-published GHCR image:
-
-```bash
-sudo podman login ghcr.io  # only needed if the package is private
-truncate -s 100G bootable.img
-just disk-image 'ghcr.io/<your-user>/arch' latest
-```
+1. Generate `bootable.img` using the recommended access-image flow from the "Building" section.
 
 2. Identify the target disk (example: `/dev/nvme0n1`):
 ```bash
@@ -187,14 +164,14 @@ sync
 
 4. Reboot and boot from that disk.
    - On the first boot after installation, the system will prompt you to select your timezone before proceeding to the graphical login.
-   - If you did not pre-create a user, use the temporary access-image flow in the "Building" section before installation so you can log in on a virtual console (usually `Ctrl`+`Alt`+`F3`) on first boot.
-   - If you did pre-create a user, you can log in directly and skip the manual account-creation step below.
+   - The recommended flow above pre-creates both `root` and one admin user, so you can log in directly.
+   - After first boot, rotate or remove the temporary passwords.
 
 ## Post-Installation / First Boot
 
-> The root account is locked by default. Configure user accounts via cloud-init, standard users in your builder tool, inject an SSH key during image generation, or use the temporary access-image flow in the "Building" section.
+> The recommended flow in the "Building" section pre-creates `root` plus one admin user. Rotate or remove those temporary passwords after first boot.
 
-If you did not already pre-create a user, and you have root access (for example via that temporary image, an injected SSH key, or live media), create your own admin account:
+If you used a plain image without pre-created credentials, and you have root access (for example via an injected SSH key or live media), create your own admin account:
 
 ```bash
 # Ensure the user has UID 1000 to use the pre-configured Homebrew
