@@ -91,7 +91,14 @@ RUN sed -i 's/^hosts: .*/hosts: files mdns_minimal [NOTFOUND=return] dns myhostn
     systemctl enable ssh
 
 # Source profile.d scripts for non-login shells.
-RUN echo -e '\n# Source profile.d scripts for non-login shells\nfor script in /etc/profile.d/*.sh; do\n  [ -r "$script" ] && . "$script"\ndone\nunset script' >> /etc/bash.bashrc
+RUN cat >> /etc/bash.bashrc <<'EOF'
+
+# Source profile.d scripts for non-login shells
+for script in /etc/profile.d/*.sh; do
+  [ -r "$script" ] && . "$script"
+done
+unset script
+EOF
 
 # OCI metadata consumed by bootc-aware tooling.
 LABEL containers.bootc 1
