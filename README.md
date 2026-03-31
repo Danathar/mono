@@ -1,73 +1,143 @@
 # Bootcrew
 
-This is a monorepo for all the Bootcrew images! These are multiple different container images made for usage with [`bootc`](https://github.com/bootc-dev/bootc), they can be used as a base to build upon and make your own full images for your usecase, similar to the work from the [Fedora Bootc Base Images](https://docs.fedoraproject.org/en-US/bootc/base-images/) and [Universal Blue](http://universal-blue.org/).
+Bootcrew is a monorepo for building and publishing distro-specific [`bootc`](https://github.com/bootc-dev/bootc) images. The intended workflow is:
 
-## Image Documentation
+1. Start from a supported distro image in this repo.
+2. Customize its `Containerfile` and any package lists or service settings in that distro directory.
+3. Build a container image locally.
+4. Either generate a bootable disk image locally or publish the container image from your own fork.
+5. Install that image to a VM or disk, then update installed systems with `bootc switch`.
 
-- [Arch Linux](arch/README.md)
-- [Debian](debian/README.md)
+## Supported Images
 
-## Building and Running
+Ready for use:
 
-In order to get a running system you can run `just build (subdirectory)`, then generate a disk image with `just disk-image (subdirectory)` for any of the images to be used.
+- Arch Linux
+- Debian
 
-## Using this repo as a fork
+Not ready / experimental:
 
-If you want to make your own version of one of these images, the recommended approach is:
+- Ubuntu
+- openSUSE Tumbleweed
 
-1. Fork this repository to your own GitHub account.
-2. Pick the image directory you want to customize, such as `ubuntu/`, `debian/`, `arch/`, or `opensuse/`.
-3. Make your changes in that image directory.
-4. Build it locally once to validate your changes.
-5. Push your changes to your fork and let GitHub Actions build and publish updated images for you.
+Only Arch and Debian are currently maintained as supported user-facing images in this repo. Ubuntu and openSUSE files are present as in-progress work and should not be treated as ready-to-use images.
 
-### Important: by default, a fork will build all images
+| Image | Status | Published architecture(s) | Default build result | CI status | Docs |
+| --- | --- | --- | --- | --- | --- |
+| Arch Linux | Ready | `amd64` | KDE desktop image | push, pull request, schedule | [arch/README.md](arch/README.md) |
+| Debian | Ready | `amd64` | Base / CLI image | push, pull request, schedule | [debian/README.md](debian/README.md) |
+| Ubuntu | Experimental | not supported yet | present in repo only | manual workflow only | none |
+| openSUSE Tumbleweed | Experimental | not supported yet | present in repo only | manual workflow only | none |
 
-This repository contains separate GitHub Actions workflows for multiple images. If you fork the repo as-is, pushes and scheduled workflow runs can build all image variants, not only the one you changed.
+## What This Repo Actually Does
 
-If you only want your fork to build one image, keep only the workflow for the image you care about and remove or disable the others.
+- `just build <image>` builds a container image locally.
+- `just disk-image <image> [tag]` creates `./bootable.img` by running `bootc install to-disk` inside that image.
+- Writing `bootable.img` to a VM disk or physical disk is a separate deployment step.
+- `bootc switch <image-ref>` is for a system that is already installed and running.
 
-For example, if you only want to build the Ubuntu image, keep:
+Important:
 
-- `.github/workflows/build-ubuntu.yaml`
+- The documented and tested path in this repo uses rootful Podman.
+- The default images are bootable, but they do not create a loginable user for you.
+- `root` is locked by default in the ready images.
+- If you want first-boot access, follow the access-image flow in the Arch or Debian README before you try to boot the result.
 
-and remove or disable:
+## Prerequisites
 
-- `.github/workflows/build-arch.yaml`
-- `.github/workflows/build-debian.yaml`
-- `.github/workflows/build-opensuse.yaml`
+Required for local use:
 
-### Scheduled rebuilds
+- Linux host
+- rootful Podman
+- `just`
+- enough free disk space for container builds and `bootable.img`
+- network access during builds
 
-If your goal is to stay up to date over time, you do not need to keep rebuilding locally.
+Required for GitHub publishing:
 
-The intended pattern is:
+- a GitHub fork of this repo
+- GitHub Actions enabled on that fork
+- permission to publish to GHCR under your namespace
 
-- build locally once for validation
-- use GitHub Actions in your fork for ongoing rebuilds
-- consume the published image from your GitHub Container Registry namespace
+Optional:
 
-The workflows in this repo are already configured to run on a schedule, so once your fork is set up the scheduled builds can keep your published image refreshed.
+- `openssl` for creating password hashes in temporary access images
+- `qemu-img`, `virt-install`, and `virsh` for local VM testing
 
-### Publishing from your fork
+Builds are not fully pinned. The shared build helper clones upstream `bootc` at build time, so scheduled rebuilds can pick up both distro package changes and new upstream `bootc` commits.
 
-The reusable workflow publishes images to the GitHub Container Registry for the current repository owner. That means when run from your fork, the image is published under your own namespace rather than the upstream `bootcrew` namespace.
+## What You Are Expected To Customize
 
-If your GitHub username is `your-username` and you keep the Ubuntu image name unchanged, the published image would look like:
+Most users should customize only:
 
-`ghcr.io/your-username/ubuntu-bootc:latest`
+- the distro `Containerfile`
+- package lists or distro-specific files under that image directory
+- the matching GitHub workflow if they want to rename the published image or change CI behavior
 
-### Recommended setup for a single-image fork
+Most users should not need to touch the shared helper scripts unless they intentionally want to change the underlying bootc filesystem layout or build pipeline.
 
-If you only want one maintained image in your fork, a good setup is:
+## Quick Start
 
-1. Keep only the image directory you want to customize.
-2. Keep only that image's workflow.
-3. Optionally rename the image in the workflow so the published package name is specific to your project.
-4. Let scheduled GitHub Actions rebuild and republish it.
+Debian base image:
 
-This keeps the fork simple and avoids wasting CI time building images you do not use.
+```bash
+just build debian
+```
 
-### Objective
+Arch KDE image:
 
-None of these should need to exist, ideally all of these projects would directly publish `(project-name)-bootc` images, or at least provide a `bootc` package or bundle for it. We aim to make our images as small and basic as possible to minimize maintenance burden and make it easier to upstream any effors from them..
+```bash
+just build arch
+```
+
+If you already have another credential injection method, you can turn either one into `bootable.img` directly:
+
+```bash
+just disk-image debian
+just disk-image arch
+```
+
+For a first boot you can actually log into, follow the access-image flow in:
+
+- [arch/README.md](arch/README.md)
+- [debian/README.md](debian/README.md)
+
+## Using This Repo As A Fork
+
+For supported images, the recommended pattern is:
+
+1. Fork this repository.
+2. Pick either Arch or Debian as your starting point.
+3. Remove or disable workflows you do not plan to maintain.
+4. Make your image changes in that distro directory.
+5. Build locally once to validate the result.
+6. Push to a branch to run CI validation.
+7. Merge to your default branch to publish updated images to your own GHCR namespace.
+
+If you only want one maintained image in your fork, keep only that image directory and that image's workflow. This keeps the fork simpler and avoids burning CI time on images you do not use.
+
+Do not treat Ubuntu or openSUSE as drop-in alternatives yet. Their files are present, but they are not in the same supported state as Arch and Debian.
+
+## Publishing And CI Behavior
+
+For the supported images in this repo today:
+
+- branch pushes and pull requests build for validation
+- publishing happens only on default-branch, non-pull-request runs
+- scheduled workflows rebuild and republish the current default-branch image
+- published images go to `ghcr.io/<repo-owner>/<image-name>:latest`
+
+Examples:
+
+- `ghcr.io/<your-user>/arch-bootc:latest`
+- `ghcr.io/<your-user>/debian-bootc:latest`
+
+Before relying on publishing from your fork, check all of these:
+
+- GitHub Actions is enabled on the fork
+- the workflow you want is still present and enabled
+- you understand that merging to the default branch is what publishes
+- you have decided whether your GHCR package should stay private or be made public
+- if you keep signing enabled, you have configured the `SIGNING_SECRET` repository secret
+
+Markdown-only changes do not trigger the Arch and Debian build workflows.

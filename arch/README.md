@@ -1,70 +1,107 @@
 # Arch Linux Bootc
 
-> **Note:** This image was created primarily using directed AI, though its contents have been manually tested and inspected. Special thanks to the upstream repository [bootcrew/arch-bootc](https://github.com/bootcrew/arch-bootc) for the foundational bootstrapping work.
+Supported Arch-based `bootc` image from this repository.
 
-Reference [Arch Linux](https://archlinux.org/) container image preconfigured for [bootc](https://github.com/bootc-dev/bootc) usage.
+This is the most featureful ready image in the repo. Its default build and published output is a KDE desktop image built on top of a smaller Arch bootc base.
 
-## Goal
+## What This Image Is
 
-Use this image as your own bootc image source, build locally, boot it in a VM, create your own user, and later update installed systems with `bootc switch`.
+- status: supported and ready for use in this repo
+- published architecture: `amd64`
+- default and published stage: `kde`
+- optional local-only stage: `base`
 
-*Unlike a traditional Linux distribution where you install packages on a live system, you manage this system by editing the `Containerfile`, building a new container image, and instructing your host to boot from that image.*
+If you want a CLI-only Arch image, you can build the `base` stage locally. The default GitHub workflow publishes the KDE stage, not the base stage.
 
-## Current Customizations
+## Before You Start
 
-This image includes the following opinionated changes:
+Run all commands from the repository root.
 
-### Base image
+The documented path assumes:
 
-- CPU microcode (`intel-ucode`, `amd-ucode`)
-- Hardware utilities (`fwupd` for firmware, `smartmontools` for drive health)
-- CLI utilities (`wget`, `curl`, `rsync`, `vim`, `openssh`, `git`)
-- Container tooling (`podman`, `skopeo`, `distrobox`)
-- Expanded filesystem support (`btrfs-progs`, `xfsprogs`, `e2fsprogs`, `dosfstools`, `ntfs-3g`)
-- `NetworkManager` installed and enabled for first-boot DHCP
-- `firewalld` installed and enabled (for NetworkManager zone integration)
-- `sudo` installed (`visudo` included)
-- Root password is locked by default for security (configure via cloud-init, SSH keys, or a temporary derived image)
-- Homebrew integration via `ublue-os/brew` (pre-configured to extract on first boot for UID 1000)
-- `nano` removed from the image
+- rootful Podman
+- `just`
+- enough free disk space for image builds and `bootable.img`
 
-### KDE desktop layer (built on top of base)
+Important first-boot behavior:
 
-- KDE Plasma desktop + Plasma Login Manager enabled (graphical login by default)
-- Full KDE applications suite via `kde-applications-meta`
-- Vulkan and Mesa drivers (`vulkan-radeon`, `vulkan-intel`, `vulkan-mesa-layers`, `libva-intel-driver`, `libva-mesa-driver`)
-- Essential fonts (`noto-fonts`, `noto-fonts-emoji`, `noto-fonts-cjk`)
-- GStreamer media codecs (`gst-plugins-*`, `gst-libav`)
-- Bluetooth support installed and enabled (`bluez`, `bluez-utils`)
-- Archiving tools (`unzip`, `unrar`, `p7zip`)
-- Network discovery / mDNS configured and enabled (`avahi`, `nss-mdns`)
-- Printing stack installed and enabled (`cups`, `cups-pdf`)
-- `power-profiles-daemon` installed and enabled (for KDE power management)
-- `xdg-user-dirs`, `firefox`, `flatpak`, `konsole` installed
-- Flathub remote pre-configured system-wide
+- the default image does not create a normal user
+- `root` is locked by default
+- `just disk-image arch` creates a bootable disk image, but not one you can automatically log into
 
-## Building
+If you want first-boot access, use the access-image flow below or bring your own credential injection strategy.
 
-From the repository root:
+## Naming Convention Used By `just`
 
-**Build the KDE desktop image (default, last stage):**
+The local recipes use a split between image name and tag:
+
+- `just build arch` builds the local container image `arch-bootc:latest`
+- `just disk-image arch with-access` installs `arch-bootc:with-access`
+- `just disk-image 'ghcr.io/<your-user>/arch' with-access` installs `ghcr.io/<your-user>/arch-bootc:with-access`
+
+`just disk-image` appends `-bootc` internally, so when you use a fully qualified image name you pass the repository path without the `-bootc` suffix.
+
+## Included Changes
+
+Base image changes:
+
+- CPU microcode: `intel-ucode`, `amd-ucode`
+- Hardware utilities: `fwupd`, `smartmontools`
+- CLI utilities: `wget`, `curl`, `rsync`, `vim`, `openssh`, `git`
+- Container tooling: `podman`, `skopeo`, `distrobox`
+- Filesystem utilities: `btrfs-progs`, `xfsprogs`, `e2fsprogs`, `dosfstools`, `ntfs-3g`
+- `NetworkManager`, enabled for first-boot networking
+- `firewalld`, enabled
+- `sudo`
+- Homebrew integration via `ublue-os/brew`, pre-configured for a UID `1000` user
+- `nano` removed
+
+KDE stage changes:
+
+- KDE Plasma desktop with graphical login
+- full KDE applications suite
+- Vulkan, Mesa, and VA-API drivers
+- fonts, codecs, Bluetooth, printing, and archive tools
+- `firefox`, `flatpak`, `konsole`, `xdg-user-dirs`
+- Flathub remote configured system-wide
+
+## Build Locally
+
+Build the default KDE image:
+
 ```bash
 just build arch
 ```
 
-**Build the base image only (CLI, no desktop):**
+Build the CLI-only base stage:
+
 ```bash
 just build arch base
 ```
 
-**Recommended: generate a bootable disk image from the published GHCR image with a temporary `root` password and one pre-created admin user:**
+This validates and tags a local container image. It does not create a VM, disk image, user account, or first-boot credentials.
+
+If you want a build log:
 
 ```bash
-sudo podman login ghcr.io  # only needed if the package is private
+just build arch 2>&1 | tee build.log
+```
+
+## Recommended: Create An Access-Enabled Image For First Boot
+
+Pick the base image reference you want to extend:
+
+- local build: `arch-bootc:latest`
+- published image from your fork: `ghcr.io/<your-user>/arch-bootc:latest`
+
+Then build a temporary derived image that sets a root password and creates one admin user:
+
+```bash
 ROOT_HASH="$(openssl passwd -6 '<temporary-root-password>')"
 USER_HASH="$(openssl passwd -6 '<temporary-user-password>')"
+
 cat > Containerfile.access <<'EOF'
-FROM ghcr.io/<your-user>/arch-bootc:latest
+FROM <base-image>
 ARG ROOT_HASH
 ARG USERNAME
 ARG USER_HASH
@@ -76,57 +113,70 @@ RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
     echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel && \
     chmod 0440 /etc/sudoers.d/10-wheel
 EOF
+```
 
-# If Podman fails with `/bin/sh: ... libc.so.6 ... Permission denied` on your
-# host, rerun this build as `sudo podman build --security-opt label=disable ...`.
-# The flag belongs after `build`, not before it.
+Build that derived image with rootful Podman:
+
+```bash
+# Only needed if you are using a private GHCR base image.
+sudo podman login ghcr.io
+
+# If you built the base image locally, replace <base-image> with arch-bootc:latest
+# before running this command.
 sudo podman build \
   --build-arg ROOT_HASH="${ROOT_HASH}" \
   --build-arg USERNAME='<username>' \
   --build-arg USER_HASH="${USER_HASH}" \
   -t ghcr.io/<your-user>/arch-bootc:with-access \
   -f Containerfile.access .
+```
 
+Turn that image into a bootable disk image:
+
+```bash
 truncate -s 100G bootable.img
 just disk-image 'ghcr.io/<your-user>/arch' with-access
 ```
 
-`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/arch` here, not `ghcr.io/<your-user>/arch-bootc`.
+Notes:
 
-Run these commands from the repository root. `truncate -s 100G bootable.img` creates a sparse disk file at `./bootable.img`, and `just disk-image ...` bind-mounts the current directory into the installer container as `/data`. Inside that container, `bootc install to-disk --via-loopback /data/bootable.img` is operating on the same host file as `./bootable.img`, attaching it to a loop device, partitioning it, formatting it, and installing the OS into it.
+- `truncate -s 100G bootable.img` creates a sparse file at `./bootable.img`
+- if `bootable.img` does not exist, `just disk-image` creates a default `20G` sparse file for you
+- `just disk-image` bind-mounts the current directory as `/data` and runs `bootc install to-disk --via-loopback /data/bootable.img`
+- you do not need to push the `with-access` tag first if it already exists in the rootful Podman store
+- use `sudo podman build` so the derived image lands in the same rootful store used by `just disk-image`
 
-The `ghcr.io/<your-user>/arch-bootc:with-access` name can refer to a local image tag; you do not need to push it first. If you build that derived image locally with `sudo podman build ... -t ghcr.io/<your-user>/arch-bootc:with-access ...`, then `just disk-image 'ghcr.io/<your-user>/arch' with-access` will use that image from the rootful Podman store. If `bootable.img` does not exist yet, `just disk-image` creates a default 20G image automatically.
+Treat the `with-access` image as temporary and rotate or remove both passwords after first boot.
 
-Use `sudo podman build` so the derived image lands in the rootful Podman store that `just disk-image` uses. Treat that `with-access` image as temporary and remove or rotate both passwords after first boot.
+## Minimal Disk-Image Flow
 
-**If you do not want pre-created credentials, you can still generate a disk image directly:**
+Only use these if you already have another way to get into the system after installation.
+
+From the locally built image:
+
 ```bash
 just disk-image arch
 ```
 
-Or from the published GHCR image:
+From a published image:
+
 ```bash
-sudo podman login ghcr.io  # only needed if the package is private
+sudo podman login ghcr.io
 just disk-image 'ghcr.io/<your-user>/arch' latest
 ```
 
-If you want log files you can tail:
-```bash
-just build arch 2>&1 | tee build.log
-```
+## Create A VM
 
-## Creating a VM
+First generate `bootable.img` using the recommended access-image flow above or another credential strategy.
 
-### 1. Generate the disk image
+Convert the raw disk image to qcow2:
 
 ```bash
-# Run the recommended access-image flow from the "Building" section first.
-# That produces bootable.img with a temporary root password and one admin user.
 mkdir -p output
 qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/arch-bootc-100g.qcow2
 ```
 
-### 2. Launch with virt-install
+Launch it with `virt-install`:
 
 ```bash
 virt-install \
@@ -146,6 +196,7 @@ virt-install \
 ```
 
 To recreate the VM:
+
 ```bash
 virsh -c qemu:///session destroy arch-bootc-local || true
 virsh -c qemu:///session undefine arch-bootc-local --nvram || true
@@ -153,36 +204,38 @@ virsh -c qemu:///session undefine arch-bootc-local --nvram || true
 
 Then run the `virt-install` command again.
 
-## Installing on Bare Metal
+## Install On Bare Metal
 
-1. Generate `bootable.img` using the recommended access-image flow from the "Building" section.
+1. Generate `bootable.img` using the recommended access-image flow above.
+2. Confirm the target disk carefully.
+3. Write the image to disk.
 
-2. Identify the target disk (example: `/dev/nvme0n1`):
+Identify the disk:
+
 ```bash
 sudo lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
 ```
 
-3. Write the image to disk:
+Write the image:
+
 ```bash
 sudo dd if=bootable.img of=/dev/nvme0n1 bs=16M status=progress oflag=direct conv=fsync
 sync
 ```
 
-> `dd` erases the target disk completely. Double-check `of=` before running. Keep Secure Boot disabled unless you manage your own signed boot chain.
+`dd` erases the target disk completely. Double-check `of=` before you run it. Keep Secure Boot disabled unless you manage your own signed boot chain.
 
-4. Reboot and boot from that disk.
-   - On the first boot after installation, the system will prompt you to select your timezone before proceeding to the graphical login.
-   - The recommended flow above pre-creates both `root` and one admin user, so you can log in directly.
-   - After first boot, rotate or remove the temporary passwords.
+## First Boot And Credentials
 
-## Post-Installation / First Boot
+If you used the access-image flow:
 
-> The recommended flow in the "Building" section pre-creates `root` plus one admin user. Rotate or remove those temporary passwords after first boot.
+- log in with the temporary root or user password
+- rotate or remove those passwords immediately
+- keep the first user at UID `1000` if you want the preconfigured Homebrew integration
 
-If you used a plain image without pre-created credentials, and you have root access (for example via an injected SSH key or live media), create your own admin account:
+If you used a plain image without pre-created credentials, you need some other root access path before you can create a user. Once you have root access:
 
 ```bash
-# Ensure the user has UID 1000 to use the pre-configured Homebrew
 useradd -m -u 1000 -G wheel -s /bin/bash <username>
 echo '<username>:<password>' | chpasswd
 mkdir -p /etc/sudoers.d
@@ -192,26 +245,25 @@ chmod 0440 /etc/sudoers.d/10-wheel
 
 ## Updating Installed Systems
 
-Once installed, switch to your published image and reboot:
+Once the system is installed, update it by switching to your published image and rebooting:
 
 ```bash
 bootc switch ghcr.io/<your-user>/arch-bootc:latest
 reboot
 ```
 
-Your local users and host state persist across image updates (`/etc`, `/var/home`).
+Your local users and host state persist across image updates under `/etc` and `/var/home`.
 
-## Upstream Compatibility Work (Why This Image Works)
+## Why The Arch Image Works
 
-This project inherits key bootstrapping work from the upstream `bootcrew/arch-bootc` approach:
+This image includes a few Arch-specific compatibility steps that are easy to break if you remove them:
 
-- `bootc` is built from upstream source during image build because Arch official repos do not currently ship `bootc`.
-- Arch container base fixes are applied:
-  - pacman `/var` paths are relocated into `/usr/lib/sysimage` for bootc-style immutable layout behavior
-  - `NoExtract` rules are disabled so language/help content can be installed normally
-  - `glibc` is reinstalled to restore missing locale files from the base container
-- Initramfs and boot integration are prepared with `dracut` config for `ostree` + `bootc` modules.
-- Bootc/ostree filesystem layout and symlink structure is enforced (`/sysroot`, `/ostree`, `/var/home`, etc.) with composefs enabled.
-- Required metadata label is set for bootc-compatible images: `containers.bootc=1`.
+- `bootc` is built from upstream source because Arch does not currently ship it as a ready package for this workflow
+- pacman paths under `/var` are remapped into `/usr/lib/sysimage` to fit the immutable bootc layout
+- Arch's `NoExtract` defaults are disabled so language and help files can be installed normally
+- `glibc` is reinstalled to restore locale files stripped from the base container
+- the initramfs is rebuilt with the `bootc` dracut module
+- the final root filesystem is normalized into the bootc / ostree layout with composefs enabled
+- the required `containers.bootc=1` label is applied
 
-If you remove or change these compatibility steps, `bootc install/switch` behavior may break or become inconsistent.
+If you change those compatibility steps, `bootc install` or `bootc switch` may stop behaving correctly.

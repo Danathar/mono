@@ -1,55 +1,90 @@
 # Debian Bootc
 
-> **Note:** This image was created primarily using directed AI, though its contents have been manually tested and inspected. Special thanks to the upstream repository [bootcrew/mono](https://github.com/bootcrew/mono) for the foundational bootstrapping work.
+Supported Debian-based `bootc` image from this repository.
 
-Reference [Debian](https://www.debian.org/) (unstable) container image preconfigured for [bootc](https://github.com/bootc-dev/bootc) usage.
+This image currently tracks Debian unstable and is intended to be a small, bootable base image that you can extend with your own packages and configuration.
 
-## Goal
+## What This Image Is
 
-Use this image as your own bootc image source, build locally, boot it in a VM, create your own user, and later update installed systems with `bootc switch`.
+- status: supported and ready for use in this repo
+- published architecture: `amd64`
+- default and published stage: `base`
+- interface style: base / CLI only
 
-*Unlike a traditional Linux distribution where you install packages on a live system, you manage this system by editing the `Containerfile`, building a new container image, and instructing your host to boot from that image.*
+This image does not include a desktop environment or display manager.
 
-## Current Customizations
+## Before You Start
 
-This image includes the following opinionated changes:
+Run all commands from the repository root.
 
-### Base image
+The documented path assumes:
 
-- Hardware utilities (`fwupd` for firmware, `smartmontools` for drive health)
-- CLI utilities (`wget`, `curl`, `rsync`, `vim`, `openssh-server`, `git`)
-- Container tooling (`podman`, `skopeo`, `distrobox`)
-- Expanded filesystem support (`btrfs-progs`, `xfsprogs`, `e2fsprogs`, `dosfstools`, `ntfs-3g`)
-- `NetworkManager` installed and enabled for first-boot DHCP
-- `firewalld` installed and enabled
-- `sudo` installed
-- Root password is locked by default for security (configure via cloud-init, SSH keys, or a temporary derived image)
-- Homebrew integration via `ublue-os/brew` (pre-configured to extract on first boot for UID 1000)
+- rootful Podman
+- `just`
+- enough free disk space for image builds and `bootable.img`
 
-This Debian image is intentionally base/CLI-only. It does not include a desktop environment or display manager.
+Important first-boot behavior:
 
-## Building
+- the default image does not create a normal user
+- `root` is locked by default
+- `just disk-image debian` creates a bootable disk image, but not one you can automatically log into
 
-From the repository root:
+If you want first-boot access, use the access-image flow below or bring your own credential injection strategy.
 
-**Build the Debian base image (default and only published stage):**
+## Naming Convention Used By `just`
+
+The local recipes use a slightly unusual split between image name and tag:
+
+- `just build debian` builds the local container image `debian-bootc:latest`
+- `just disk-image debian with-access` installs `debian-bootc:with-access`
+- `just disk-image 'ghcr.io/<your-user>/debian' with-access` installs `ghcr.io/<your-user>/debian-bootc:with-access`
+
+`just disk-image` appends `-bootc` internally, so when you use a fully qualified image name you pass the repository path without the `-bootc` suffix.
+
+## Included Changes
+
+This image currently includes:
+
+- Hardware utilities: `fwupd`, `smartmontools`
+- CLI utilities: `wget`, `curl`, `rsync`, `vim`, `openssh-server`, `git`
+- Container tooling: `podman`, `skopeo`, `distrobox`
+- Filesystem utilities: `btrfs-progs`, `xfsprogs`, `e2fsprogs`, `dosfstools`, `ntfs-3g`
+- `NetworkManager`, enabled for first-boot networking
+- `firewalld`, enabled
+- `sudo`
+- Homebrew integration via `ublue-os/brew`, pre-configured for a UID `1000` user
+
+## Build Locally
+
+Build the default Debian image:
+
 ```bash
 just build debian
 ```
 
-**Explicitly build the named `base` stage (equivalent):**
+Build the same published stage explicitly:
+
 ```bash
 just build debian base
 ```
 
-**Recommended: generate a bootable disk image from the published GHCR image with a temporary `root` password and one pre-created admin user:**
+This validates and tags the local container image. It does not create a VM, disk image, user account, or first-boot credentials.
+
+## Recommended: Create An Access-Enabled Image For First Boot
+
+Pick the base image reference you want to extend:
+
+- local build: `debian-bootc:latest`
+- published image from your fork: `ghcr.io/<your-user>/debian-bootc:latest`
+
+Then build a temporary derived image that sets a root password and creates one admin user:
 
 ```bash
-sudo podman login ghcr.io  # only needed if the package is private
 ROOT_HASH="$(openssl passwd -6 '<temporary-root-password>')"
 USER_HASH="$(openssl passwd -6 '<temporary-user-password>')"
+
 cat > Containerfile.access <<'EOF'
-FROM ghcr.io/<your-user>/debian-bootc:latest
+FROM <base-image>
 ARG ROOT_HASH
 ARG USERNAME
 ARG USER_HASH
@@ -58,52 +93,70 @@ RUN echo "root:${ROOT_HASH}" | chpasswd -e && \
     useradd -m -d "/var/home/${USERNAME}" -u 1000 -G sudo -s /bin/bash "${USERNAME}" && \
     echo "${USERNAME}:${USER_HASH}" | chpasswd -e
 EOF
+```
 
-# If Podman fails with `/bin/sh: ... libc.so.6 ... Permission denied` on your
-# host, rerun this build as `sudo podman build --security-opt label=disable ...`.
-# The flag belongs after `build`, not before it.
+Build that derived image with rootful Podman:
+
+```bash
+# Only needed if you are using a private GHCR base image.
+sudo podman login ghcr.io
+
+# If you built the base image locally, replace <base-image> with debian-bootc:latest
+# before running this command.
 sudo podman build \
   --build-arg ROOT_HASH="${ROOT_HASH}" \
   --build-arg USERNAME='<username>' \
   --build-arg USER_HASH="${USER_HASH}" \
   -t ghcr.io/<your-user>/debian-bootc:with-access \
   -f Containerfile.access .
+```
 
+Turn that image into a bootable disk image:
+
+```bash
 truncate -s 100G bootable.img
 just disk-image 'ghcr.io/<your-user>/debian' with-access
 ```
 
-`just disk-image` appends `-bootc` internally, so use `ghcr.io/<your-user>/debian` here, not `ghcr.io/<your-user>/debian-bootc`.
+Notes:
 
-Run these commands from the repository root. `truncate -s 100G bootable.img` creates a sparse disk file at `./bootable.img`, and `just disk-image ...` bind-mounts the current directory into the installer container as `/data`. Inside that container, `bootc install to-disk --via-loopback /data/bootable.img` is operating on the same host file as `./bootable.img`, attaching it to a loop device, partitioning it, formatting it, and installing the OS into it.
+- `truncate -s 100G bootable.img` creates a sparse file at `./bootable.img`
+- if `bootable.img` does not exist, `just disk-image` creates a default `20G` sparse file for you
+- `just disk-image` bind-mounts the current directory as `/data` and runs `bootc install to-disk --via-loopback /data/bootable.img`
+- you do not need to push the `with-access` tag first if it already exists in the rootful Podman store
+- use `sudo podman build` so the derived image lands in the same rootful store used by `just disk-image`
 
-The `ghcr.io/<your-user>/debian-bootc:with-access` name can refer to a local image tag; you do not need to push it first. If you build that derived image locally with `sudo podman build ... -t ghcr.io/<your-user>/debian-bootc:with-access ...`, then `just disk-image 'ghcr.io/<your-user>/debian' with-access` will use that image from the rootful Podman store. If `bootable.img` does not exist yet, `just disk-image` creates a default 20G image automatically.
+Treat the `with-access` image as temporary and rotate or remove both passwords after first boot.
 
-Use `sudo podman build` so the derived image lands in the rootful Podman store that `just disk-image` uses. Treat that `with-access` image as temporary and remove or rotate both passwords after first boot.
+## Minimal Disk-Image Flow
 
-**If you do not want pre-created credentials, you can still generate a disk image directly:**
+Only use these if you already have another way to get into the system after installation.
+
+From the locally built image:
+
 ```bash
 just disk-image debian
 ```
 
-Or from the published GHCR image:
+From a published image:
+
 ```bash
-sudo podman login ghcr.io  # only needed if the package is private
+sudo podman login ghcr.io
 just disk-image 'ghcr.io/<your-user>/debian' latest
 ```
 
-## Creating a VM
+## Create A VM
 
-### 1. Generate the disk image
+First generate `bootable.img` using the recommended access-image flow above or another credential strategy.
+
+Convert the raw disk image to qcow2:
 
 ```bash
-# Run the recommended access-image flow from the "Building" section first.
-# That produces bootable.img with a temporary root password and one admin user.
 mkdir -p output
 qemu-img convert -f raw -O qcow2 -S 4k bootable.img output/debian-bootc-100g.qcow2
 ```
 
-### 2. Launch with virt-install
+Launch it with `virt-install`:
 
 ```bash
 virt-install \
@@ -123,47 +176,55 @@ virt-install \
 ```
 
 To recreate the VM:
+
 ```bash
 virsh -c qemu:///session destroy debian-bootc-local || true
 virsh -c qemu:///session undefine debian-bootc-local --nvram || true
 ```
 
-## Installing on Bare Metal
+## Install On Bare Metal
 
-1. Generate `bootable.img` using the recommended access-image flow from the "Building" section.
+1. Generate `bootable.img` using the recommended access-image flow above.
+2. Confirm the target disk carefully.
+3. Write the image to disk.
 
-2. Identify the target disk (example: `/dev/nvme0n1`):
+Identify the disk:
+
 ```bash
 sudo lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
 ```
 
-3. Write the image to disk:
+Write the image:
+
 ```bash
 sudo dd if=bootable.img of=/dev/nvme0n1 bs=16M status=progress oflag=direct conv=fsync
 sync
 ```
 
-> `dd` erases the target disk completely. Double-check `of=` before running. Keep Secure Boot disabled unless you manage your own signed boot chain.
+`dd` erases the target disk completely. Double-check `of=` before you run it. Keep Secure Boot disabled unless you manage your own signed boot chain.
 
-## Post-Installation / First Boot
+## First Boot And Credentials
 
-> The recommended flow in the "Building" section pre-creates `root` plus one admin user. Rotate or remove those temporary passwords after first boot.
+If you used the access-image flow:
 
-If you used a plain image without pre-created credentials, and you have root access (for example via an injected SSH key or live media), create your own admin account:
+- log in with the temporary root or user password
+- rotate or remove those passwords immediately
+- keep the first user at UID `1000` if you want the preconfigured Homebrew integration
+
+If you used a plain image without pre-created credentials, you need some other root access path before you can create a user. Once you have root access:
 
 ```bash
-# Ensure the user has UID 1000 to use the pre-configured Homebrew
 useradd -m -u 1000 -G sudo -s /bin/bash <username>
 echo '<username>:<password>' | chpasswd
 ```
 
 ## Updating Installed Systems
 
-Once installed, switch to your published image and reboot:
+Once the system is installed, update it by switching to your published image and rebooting:
 
 ```bash
 bootc switch ghcr.io/<your-user>/debian-bootc:latest
 reboot
 ```
 
-Your local users and host state persist across image updates (`/etc`, `/var/home`).
+Your local users and host state persist across image updates under `/etc` and `/var/home`.
