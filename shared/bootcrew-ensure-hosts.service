@@ -1,0 +1,13 @@
+[Unit]
+Description=Populate /etc/hosts if it is missing or empty
+DefaultDependencies=no
+After=local-fs.target
+Before=getty.target multi-user.target network-pre.target
+ConditionPathIsReadWrite=/etc
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bootcrew-ensure-default-hosts
+
+[Install]
+WantedBy=multi-user.target
