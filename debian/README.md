@@ -103,6 +103,8 @@ sudo podman login ghcr.io
 
 # If you built the base image locally, replace <base-image> with debian-bootc:latest
 # before running this command.
+# If this fails on a Fedora or other SELinux-enforcing host, retry with:
+#   --security-opt label=disable
 sudo podman build \
   --build-arg ROOT_HASH="${ROOT_HASH}" \
   --build-arg USERNAME='<username>' \
@@ -125,6 +127,7 @@ Notes:
 - `just disk-image` bind-mounts the current directory as `/data` and runs `bootc install to-disk --via-loopback /data/bootable.img`
 - you do not need to push the `with-access` tag first if it already exists in the rootful Podman store
 - use `sudo podman build` so the derived image lands in the same rootful store used by `just disk-image`
+- on Fedora and other SELinux-enforcing hosts, `sudo podman build --security-opt label=disable ...` may be needed for this temporary access-image build
 
 Treat the `with-access` image as temporary and rotate or remove both passwords after first boot.
 
@@ -210,6 +213,14 @@ If you used the access-image flow:
 - log in with the temporary root or user password
 - rotate or remove those passwords immediately
 - keep the first user at UID `1000` if you want the preconfigured Homebrew integration
+- if you installed `ghcr.io/<your-user>/debian-bootc:with-access`, switch to your normal image after first login:
+
+```bash
+sudo bootc switch ghcr.io/<your-user>/debian-bootc:latest
+sudo reboot
+```
+
+`with-access` is meant only for first boot and initial access. After the reboot, the system should track your normal published image such as `ghcr.io/<your-user>/debian-bootc:latest`.
 
 If you used a plain image without pre-created credentials, you need some other root access path before you can create a user. Once you have root access:
 
@@ -223,8 +234,8 @@ echo '<username>:<password>' | chpasswd
 Once the system is installed, update it by switching to your published image and rebooting:
 
 ```bash
-bootc switch ghcr.io/<your-user>/debian-bootc:latest
-reboot
+sudo bootc switch ghcr.io/<your-user>/debian-bootc:latest
+sudo reboot
 ```
 
 Your local users and host state persist across image updates under `/etc` and `/var/home`.
