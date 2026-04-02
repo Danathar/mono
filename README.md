@@ -26,7 +26,7 @@ None of these should need to exist. Ideally all of these projects would directly
 | Ubuntu | `ghcr.io/bootcrew/ubuntu-bootc:latest` | `amd64`, `arm64` |
 | openSUSE Tumbleweed | `ghcr.io/bootcrew/opensuse-bootc:latest` | `amd64`, `arm64` |
 
-All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own layer. Expect local console access only unless you add services such as SSH in your own layer.
+All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own image. Expect local console access only unless you add services such as SSH in your own image.
 
 These images are still installable as-is. Building the disk image and installing it happens from the build host or a live environment, not from inside the target system. The main difference is what kind of access you have after first boot.
 
