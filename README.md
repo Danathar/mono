@@ -46,6 +46,8 @@ Check whether you need it:
 getenforce
 ```
 
+If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If it is unavailable in your configured repos, use a different build host or add it to the image you use as your build host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
+
 If that prints `Enforcing`, install the policy package before running the builder:
 
 ```bash
@@ -58,8 +60,6 @@ sudo systemctl reboot
 ```
 
 You can of course temporarily disable SELinux with `sudo setenforce 0` and later turn it back on with `sudo setenforce 1`, but that would make Dan Walsh cry! ;) See [stopdisablingselinux.com](https://stopdisablingselinux.com/).
-
-If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If it is unavailable in your configured repos, use a different build host or add it to the image you use as your build host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
 
 Likewise, if the Linux environment running Podman is not using SELinux (or it is turned off), you can omit the `--security-opt label=type:unconfined_t` line from the example commands below.
 
