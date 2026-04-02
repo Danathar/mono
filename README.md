@@ -15,6 +15,7 @@ None of these should need to exist. Ideally all of these projects would directly
 - [Building Your Own Image](#building-your-own-image)
 - [Building The Images From Source](#building-the-images-from-source)
 - [Forking This Repo](#forking-this-repo)
+- [SELinux Hosts](#selinux-hosts)
 
 ## Published Images
 
@@ -35,30 +36,7 @@ Pull a published image and generate a bootable disk image with [bootc-image-buil
 
 You need `podman` on the build host. For many hosts, that is the only prerequisite.
 
-If your host uses SELinux in `Enforcing` mode, install `osbuild-selinux` first. This is the host SELinux policy that lets `bootc-image-builder` do the mount and image-construction work it needs. Without it, builds on enforcing systems often fail with SELinux permission errors even when the container is run as `--privileged`.
-
-Check whether you need it:
-
-```bash
-getenforce
-```
-
-If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If it is unavailable in your configured repos, use a different build host or add it to the image you use as your build host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
-
-If that prints `Enforcing`, install the policy package before running the builder:
-
-```bash
-# Package-based hosts
-sudo dnf install -y osbuild-selinux
-
-# rpm-ostree / bootc hosts such as Fedora Atomic or Universal Blue
-sudo rpm-ostree install osbuild-selinux
-sudo systemctl reboot
-```
-
-You can of course temporarily disable SELinux with `sudo setenforce 0` and later turn it back on with `sudo setenforce 1`, but that would make Dan Walsh cry! ;) See [stopdisablingselinux.com](https://stopdisablingselinux.com/).
-
-If the Linux environment running Podman does not have SELinux enabled, you can leave out the `--security-opt label=type:unconfined_t` line from the example commands below. Keeping it there usually still works, but it only matters on SELinux-enabled hosts.
+If the Linux environment running Podman uses SELinux in `Enforcing` mode, see [SELinux Hosts](#selinux-hosts) before running the builder.
 
 Create a `config.toml` with a local user so the installed system is immediately usable:
 
@@ -104,6 +82,8 @@ For Bootcrew images, this README focuses on these two `--type` values:
 If you are just getting started, use `qcow2` for VMs or `raw` for bare metal. You can specify multiple types in one run, for example `--type qcow2 --type raw`.
 
 Replace `debian-bootc` with any image from the table above. If you use `--type raw`, [Install On Bare Metal](#install-on-bare-metal) below shows how to locate and write the generated `disk.raw`. bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
+
+If the Linux environment running Podman does not have SELinux enabled, you can leave out the `--security-opt label=type:unconfined_t` line from the example commands below. Keeping it there usually still works, but it only matters on SELinux-enabled hosts.
 
 ## Create A VM
 
@@ -326,3 +306,28 @@ Helpful references:
 - Working with the Container registry (`ghcr.io`): <https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry>
 - Using secrets in GitHub Actions: <https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets>
 - Cosign key generation for `SIGNING_SECRET`: <https://docs.sigstore.dev/cosign/key_management/signing_with_self-managed_keys/>
+
+## SELinux Hosts
+
+This section is only relevant when the Linux environment running Podman has SELinux enabled. If SELinux is `Permissive`, `Disabled`, or not present, you can usually skip it.
+
+Check whether you need the extra host policy package:
+
+```bash
+getenforce
+```
+
+If that prints `Enforcing`, install `osbuild-selinux` before running `bootc-image-builder`. This is the host SELinux policy that allows the builder to do the mount and image-construction work it needs. Without it, builds on enforcing systems often fail with SELinux permission errors even when the container is run as `--privileged`.
+
+If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If it is unavailable in your configured repos, use a different build host or add it to the image you use as your build host.
+
+```bash
+# Package-based hosts
+sudo dnf install -y osbuild-selinux
+
+# rpm-ostree / bootc hosts such as Fedora Atomic or Universal Blue
+sudo rpm-ostree install osbuild-selinux
+sudo systemctl reboot
+```
+
+You can of course temporarily disable SELinux with `sudo setenforce 0` and later turn it back on with `sudo setenforce 1`, but that would make Dan Walsh cry! ;) See [stopdisablingselinux.com](https://stopdisablingselinux.com/).
