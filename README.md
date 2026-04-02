@@ -50,7 +50,7 @@ key = "ssh-rsa AAAA... user@host"
 groups = ["<admin-group>"]
 ```
 
-If your derived image installs `sudo`, use `"sudo"` for Debian and Ubuntu images and `"wheel"` for Arch Linux images. The published openSUSE image does not currently provide a matching admin group, so omit `groups` there unless your own layer creates one.
+If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`. For openSUSE, install `sudo` plus either `sudo-policy-wheel-auth-self` and use `"wheel"`, or `system-group-sudo sudo-policy-sudo-auth-self` and use `"sudo"`. The published openSUSE image does not provide admin access by default, so omit `groups` there unless your own layer adds it.
 
 On the published images, the password gets you console login on first boot. The SSH key is optional and only becomes useful once your derived image installs and enables an SSH server. The published images also do not ship `sudo`, so `groups` only matters if your own layer adds administrative tooling.
 
@@ -209,7 +209,7 @@ RUN apt update -y && \
 
 This example starts from Debian and adds SSH so the SSH key in `config.toml` can actually be used after first boot. Replace `debian-bootc` with any published Bootcrew image if you want to start from a different distro.
 
-Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
+Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`. For openSUSE, `sudo` access also needs a policy package such as `sudo-policy-wheel-auth-self` or `sudo-policy-sudo-auth-self`.
 
 2. Create a `config.toml` for first boot so the installed system is immediately usable. Reuse the same `config.toml` pattern from [Quick Start](#quick-start), including the distro-specific admin group and optional SSH key.
 
