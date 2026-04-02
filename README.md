@@ -46,15 +46,13 @@ Create a `config.toml` with a local user so the installed system is immediately 
 [[customizations.user]]
 name = "<username>"
 password = "<temporary-password>"
-# Optional if your derived image installs and enables SSH
-key = "ssh-rsa AAAA... user@host"
 # Optional if your derived image installs sudo or similar admin tooling
 groups = ["<admin-group>"]
 ```
 
 If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`.
 
-On the published images, the password gets you console login on first boot. The SSH key is optional and only becomes useful once your derived image installs and enables an SSH server. The published images also do not ship `sudo`, so `groups` only matters if your own layer adds administrative tooling. That does not affect installation itself: generating the image, booting a VM, and writing a raw disk image all happen from outside the target system.
+On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own layer adds administrative tooling. That does not affect installation itself: generating the image, booting a VM, and writing a raw disk image all happen from outside the target system.
 
 In particular, the published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own layer. A derived openSUSE image can use `sudo` plus either `sudo-policy-wheel-auth-self` with `groups = ["wheel"]`, or `system-group-sudo sudo-policy-sudo-auth-self` with `groups = ["sudo"]`.
 
@@ -215,7 +213,7 @@ This example starts from Debian and adds SSH so the SSH key in `config.toml` can
 
 Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`. For openSUSE, `sudo` access also needs a policy package such as `sudo-policy-wheel-auth-self` or `sudo-policy-sudo-auth-self`.
 
-2. Create a `config.toml` for first boot so the installed system is immediately usable. Reuse the same `config.toml` pattern from [Quick Start](#quick-start), including the distro-specific admin group and optional SSH key.
+2. Create a `config.toml` for first boot so the installed system is immediately usable. Reuse the same `config.toml` pattern from [Quick Start](#quick-start), including the distro-specific admin group. If your derived image installs and enables SSH, you can also add a `key = "ssh-rsa AAAA... user@host"` line under the same `[[customizations.user]]` entry.
 
 3. Build your derived image locally.
 
