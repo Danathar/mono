@@ -195,6 +195,10 @@ Your local users and host state persist across image updates under `/etc` and `/
 
 You can use any Bootcrew image as a `FROM` base in your own Containerfile. This is the right path if you want remote access, extra packages, or opinionated defaults.
 
+One straightforward flow looks like this:
+
+1. Create a `Containerfile` for your derived image.
+
 ```dockerfile
 FROM ghcr.io/bootcrew/debian-bootc:latest
 
@@ -204,12 +208,34 @@ RUN apt update -y && \
     apt clean -y
 ```
 
-This example adds SSH so the SSH key in `config.toml` can actually be used after first boot. Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
+This example starts from Debian and adds SSH so the SSH key in `config.toml` can actually be used after first boot. Replace `debian-bootc` with any published Bootcrew image if you want to start from a different distro.
 
-Build and generate a disk image from your derived image:
+Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
+
+2. Create a `config.toml` for first boot so the installed system is immediately usable.
+
+```toml
+[[customizations.user]]
+name = "<username>"
+password = "<temporary-password>"
+key = "ssh-rsa AAAA... user@host"
+groups = ["<admin-group>"]
+```
+
+Use `"sudo"` for Debian and Ubuntu images. Use `"wheel"` for Arch Linux and openSUSE images.
+
+The password gives you console login on first boot. The SSH key is optional and only matters if your derived image installs and enables an SSH server.
+
+3. Build your derived image locally.
 
 ```bash
 sudo podman build -t my-server:latest -f Containerfile .
+```
+
+4. Generate a bootable disk image from that local container image.
+
+```bash
+mkdir -p output
 
 sudo podman run \
   --rm -it --privileged \
@@ -222,9 +248,11 @@ sudo podman run \
   localhost/my-server:latest
 ```
 
-bootc-image-builder resolves image references from the mounted `/var/lib/containers/storage`, so locally-built images are found automatically.
+bootc-image-builder resolves image references from the mounted `/var/lib/containers/storage`, so locally-built images are found automatically. Change `--type qcow2` to `--type raw` if you want a bare-metal image instead of a VM image.
 
-Once the image is built, follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal](#install-on-bare-metal) for `raw` output to actually boot and install your custom image.
+5. Boot or install it.
+
+Follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal](#install-on-bare-metal) for `raw` output to actually boot and install your custom image.
 
 ## Building The Images From Source
 
