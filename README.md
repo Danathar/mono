@@ -11,7 +11,7 @@ Bootcrew publishes minimal, bootable [`bootc`](https://github.com/bootc-dev/boot
 | Ubuntu | `ghcr.io/bootcrew/ubuntu-bootc:latest` | `amd64`, `arm64` |
 | openSUSE Tumbleweed | `ghcr.io/bootcrew/opensuse-bootc:latest` | `amd64`, `arm64` |
 
-All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own layer.
+All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own layer. Expect local console access only unless you add services such as SSH in your own layer.
 
 Images are rebuilt weekly to pick up distro package updates and new upstream `bootc` commits.
 
@@ -22,6 +22,8 @@ None of these should need to exist. Ideally all of these projects would directly
 ## Quick Start
 
 Pull a published image and generate a bootable disk image with [bootc-image-builder](https://github.com/osbuild/bootc-image-builder):
+
+You need `podman` on the build host. On SELinux-enforcing hosts, install `osbuild-selinux` (or your distro's equivalent osbuild SELinux policy package) first.
 
 ```bash
 mkdir -p output
@@ -42,7 +44,7 @@ Replace `debian-bootc` with any image from the table above. Replace `--type qcow
 
 ## Adding A User For First Boot
 
-The published images do not create a loginable user. To add one, create a `config.toml` and pass it to bootc-image-builder:
+The published images do not create a local login user. To get console access on first boot, create a `config.toml` and pass it to bootc-image-builder:
 
 ```toml
 [[customizations.user]]
@@ -65,7 +67,9 @@ sudo podman run \
   ghcr.io/bootcrew/debian-bootc:latest
 ```
 
-You can also use an SSH key instead of (or in addition to) a password:
+This creates a user that can log in on the VM or machine console.
+
+You can also add an SSH key:
 
 ```toml
 [[customizations.user]]
@@ -74,13 +78,15 @@ key = "ssh-rsa AAAA... user@host"
 groups = ["wheel"]
 ```
 
+SSH keys are supported by bootc-image-builder, but the published Bootcrew images do not include an SSH server. A key only becomes useful once your derived image installs and enables SSH.
+
 For Debian and Ubuntu images, use `"sudo"` instead of `"wheel"` for the group name.
 
 Rotate or remove temporary passwords after first boot.
 
 ## Output Formats
 
-bootc-image-builder supports multiple output types via the `--type` flag:
+bootc-image-builder supports multiple output types via the `--type` flag. For Bootcrew images, these are the most useful starting points:
 
 | Type | Use case |
 | --- | --- |
@@ -90,9 +96,12 @@ bootc-image-builder supports multiple output types via the `--type` flag:
 | `vhd` | Hyper-V |
 | `ami` | Amazon EC2 |
 | `gce` | Google Compute Engine |
-| `iso` | Anaconda-based installer ISO |
+| `anaconda-iso` | Unattended Anaconda installer ISO |
+| `bootc-installer` | Interactive installer ISO with additional setup |
 
 You can specify multiple types in one run: `--type qcow2 --type raw`.
+
+If you are just getting started, use `qcow2` for VMs or `raw` for bare metal. The installer ISO flows have extra requirements; follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs for those.
 
 ## Create A VM
 
@@ -114,6 +123,8 @@ virt-install \
   --osinfo linux2024 \
   --noautoconsole
 ```
+
+Log in on the VM console with the user you added in `config.toml`.
 
 To recreate the VM:
 
@@ -146,14 +157,20 @@ Identify the target disk:
 sudo lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
 ```
 
+Locate the generated raw image:
+
+```bash
+find output -type f -name 'disk.raw'
+```
+
 Write the image:
 
 ```bash
-sudo dd if=output/image/disk.raw of=/dev/nvme0n1 bs=16M status=progress oflag=direct conv=fsync
+sudo dd if=output/raw/disk.raw of=/dev/nvme0n1 bs=16M status=progress oflag=direct conv=fsync
 sync
 ```
 
-Check the `output/` directory for the exact filename if your version of bootc-image-builder uses a different layout.
+Replace `output/raw/disk.raw` with the exact path reported by `find` if your builder version uses a different layout.
 
 `dd` erases the target disk completely. Double-check `of=` before you run it. Keep Secure Boot disabled unless you manage your own signed boot chain.
 
@@ -177,17 +194,18 @@ Your local users and host state persist across image updates under `/etc` and `/
 
 ## Building Your Own Image
 
-You can use any Bootcrew image as a `FROM` base in your own Containerfile:
+You can use any Bootcrew image as a `FROM` base in your own Containerfile. This is the right path if you want remote access, extra packages, or opinionated defaults.
 
 ```dockerfile
 FROM ghcr.io/bootcrew/debian-bootc:latest
 
 RUN apt update -y && \
-    apt install -y nginx sudo openssh-server && \
-    systemctl enable nginx && \
+    apt install -y sudo openssh-server && \
     systemctl enable ssh && \
     apt clean -y
 ```
+
+This example adds SSH so the SSH key in `config.toml` can actually be used after first boot. Package and service names vary by distro; for Arch and openSUSE the service name is typically `sshd`.
 
 Build and generate a disk image from your derived image:
 
