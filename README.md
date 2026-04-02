@@ -2,6 +2,19 @@
 
 Bootcrew publishes minimal, bootable [`bootc`](https://github.com/bootc-dev/bootc) container images for multiple Linux distributions. You can use them directly or as a base to build your own images.
 
+## Table Of Contents
+
+- [Published Images](#published-images)
+- [Objective](#objective)
+- [Quick Start](#quick-start)
+- [Output Formats](#output-formats)
+- [Create A VM](#create-a-vm)
+- [Install On Bare Metal](#install-on-bare-metal)
+- [Updating Installed Systems](#updating-installed-systems)
+- [Building Your Own Image](#building-your-own-image)
+- [Building The Images From Source](#building-the-images-from-source)
+- [Forking This Repo](#forking-this-repo)
+
 ## Published Images
 
 | Image | Reference | Architecture(s) |
@@ -194,6 +207,8 @@ Your local users and host state persist across image updates under `/etc` and `/
 ## Building Your Own Image
 
 You can use any Bootcrew image as a `FROM` base in your own Containerfile. This is the right path if you want remote access, extra packages, or opinionated defaults.
+
+You can do this from any Linux host with Podman. You do not need to install one of these images first.
 
 One straightforward flow looks like this:
 
