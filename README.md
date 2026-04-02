@@ -50,7 +50,7 @@ name = "root"
 password = "<temporary-root-password>"
 ```
 
-On the published images, the regular user gets you console login on first boot, and the temporary `root` password gives you immediate admin access via `su -` or direct root console login. Change that `root` password after first boot, or remove it entirely if you do not want to keep password-based root access. If you prefer a non-root admin user with `sudo`, start with [Building Your Own Image](#building-your-own-image) and add that in your own image. For openSUSE, see the note there about the extra `sudo` policy package.
+On the published images, the regular user gets you console login on first boot, and the temporary `root` password gives you immediate admin access via `su -` or direct root console login. Change that `root` password after first boot, or remove it entirely if you do not want to keep password-based root access. If you prefer a non-root admin user with `sudo`, start with [Building Your Own Image](#building-your-own-image) and add that in your own image.
 
 ```bash
 sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
@@ -207,9 +207,7 @@ This example starts from Debian and adds SSH so the SSH key in `config.toml` can
 
 Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
 
-For openSUSE, `sudo` access also needs a policy package. If you want `groups = ["wheel"]`, install `sudo` plus `sudo-policy-wheel-auth-self`. If you want `groups = ["sudo"]`, install `sudo`, `system-group-sudo`, and `sudo-policy-sudo-auth-self`.
-
-2. Create a `config.toml` for first boot so the installed system is immediately usable. Start with the same `config.toml` pattern from [Quick Start](#quick-start). If you want a non-root admin user instead of relying on the temporary `root` password, add `groups = ["sudo"]` for Debian and Ubuntu or `groups = ["wheel"]` for Arch Linux if your image installs `sudo`. If your derived image installs and enables SSH, you can also add a `key = "ssh-rsa AAAA... user@host"` line under the same `[[customizations.user]]` entry.
+2. Create a `config.toml` for first boot so the installed system is immediately usable. Start with the same `config.toml` pattern from [Quick Start](#quick-start). If you want a non-root admin user instead of relying on the temporary `root` password, add `groups = ["sudo"]` or `groups = ["wheel"]` to match how your image configures `sudo`. If your derived image installs and enables SSH, you can also add a `key = "ssh-rsa AAAA... user@host"` line under the same `[[customizations.user]]` entry.
 
 3. Build your derived image locally.
 
