@@ -41,6 +41,8 @@ sudo dnf install -y osbuild-selinux
 
 If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
 
+Likewise, if the Linux environment running Podman is not using SELinux, you can omit the `--security-opt label=type:unconfined_t` line from the example commands below.
+
 ```bash
 mkdir -p output
 
