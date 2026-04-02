@@ -56,10 +56,14 @@ Create a `config.toml` with a local user so the installed system is immediately 
 [[customizations.user]]
 name = "<username>"
 password = "<temporary-password>"
+# Optional if your derived image installs and enables SSH
+key = "ssh-rsa AAAA... user@host"
 groups = ["<admin-group>"]
 ```
 
 Use `"sudo"` for Debian and Ubuntu images. Use `"wheel"` for Arch Linux and openSUSE images.
+
+On the published images, the password gets you console login on first boot. The SSH key is optional and only becomes useful once your derived image installs and enables an SSH server.
 
 ```bash
 mkdir -p output
@@ -82,18 +86,6 @@ Replace `debian-bootc` with any image from the table above. Replace `--type qcow
 ## Adjusting First Boot Access
 
 The published images do not create a local login user on their own. The Quick Start above adds one because that is what most people want.
-
-You can also add an SSH key to the same `config.toml`:
-
-```toml
-[[customizations.user]]
-name = "<username>"
-password = "<temporary-password>"
-key = "ssh-rsa AAAA... user@host"
-groups = ["<admin-group>"]
-```
-
-SSH keys are supported by bootc-image-builder, but the published Bootcrew images do not include an SSH server. A key only becomes useful once your derived image installs and enables SSH.
 
 Rotate or remove temporary passwords after first boot.
 
