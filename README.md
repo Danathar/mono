@@ -85,22 +85,18 @@ Replace `debian-bootc` with any image from the table above. Replace `--type qcow
 
 ## Output Formats
 
-bootc-image-builder supports multiple output types via the `--type` flag. For Bootcrew images, these are the most useful starting points:
+bootc-image-builder supports multiple output types via the `--type` flag. For Bootcrew images, this README focuses on these two:
 
 | Type | Use case |
 | --- | --- |
 | `qcow2` | QEMU / libvirt VMs (default) |
 | `raw` | Direct disk write or loopback mount |
-| `vmdk` | VMware / vSphere |
-| `vhd` | Hyper-V |
-| `ami` | Amazon EC2 |
-| `gce` | Google Compute Engine |
-| `anaconda-iso` | Unattended Anaconda installer ISO |
-| `bootc-installer` | Interactive installer ISO with additional setup |
 
 You can specify multiple types in one run: `--type qcow2 --type raw`.
 
-If you are just getting started, use `qcow2` for VMs or `raw` for bare metal. The installer ISO flows have extra requirements; follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs for those.
+If you are just getting started, use `qcow2` for VMs or `raw` for bare metal.
+
+bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
 
 ## Create A VM
 
