@@ -44,7 +44,14 @@ sudo rpm-ostree install osbuild-selinux
 sudo systemctl reboot
 ```
 
-If you are on an `rpm-ostree` host and specifically want a throwaway workaround instead of layering the package, `rpm-ostree usroverlay` creates a transient writable overlay on `/usr`. That can be useful for testing `osbuild-selinux` without keeping it layered, but it is a more advanced manual path and the changes disappear on reboot. For normal use, prefer `rpm-ostree install osbuild-selinux` and reboot.
+If you are on a `bootc` host and specifically want the closest thing to a throwaway workaround instead of layering the package, you can try:
+
+```bash
+sudo bootc usr-overlay
+sudo dnf install -y osbuild-selinux
+```
+
+This is a more advanced manual path. `bootc usr-overlay` makes `/usr` transient, but `osbuild-selinux` also writes SELinux module state under `/var`, so do not assume this workaround is perfectly ephemeral. For normal use, prefer `rpm-ostree install osbuild-selinux` and reboot.
 
 If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If it is unavailable in your configured repos, use a different build host or add it to the image you use as your build host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
 
