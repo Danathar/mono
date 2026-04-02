@@ -23,7 +23,23 @@ None of these should need to exist. Ideally all of these projects would directly
 
 Pull a published image and generate a bootable disk image with [bootc-image-builder](https://github.com/osbuild/bootc-image-builder):
 
-You need `podman` on the build host. On SELinux-enforcing hosts, install `osbuild-selinux` (or your distro's equivalent osbuild SELinux policy package) first.
+You need `podman` on the build host. Most users can stop there.
+
+If your host uses SELinux in `Enforcing` mode, install `osbuild-selinux` first. This is the host SELinux policy that lets `bootc-image-builder` do the mount and image-construction work it needs. Without it, builds on enforcing systems often fail with SELinux permission errors even when the container is run as `--privileged`.
+
+Check whether you need it:
+
+```bash
+getenforce
+```
+
+If that prints `Enforcing`, install the policy package before running the builder:
+
+```bash
+sudo dnf install -y osbuild-selinux
+```
+
+If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
 
 ```bash
 mkdir -p output
