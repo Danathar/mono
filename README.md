@@ -52,11 +52,11 @@ key = "ssh-rsa AAAA... user@host"
 groups = ["<admin-group>"]
 ```
 
-If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`. For openSUSE, install `sudo` plus either `sudo-policy-wheel-auth-self` and use `"wheel"`, or `system-group-sudo sudo-policy-sudo-auth-self` and use `"sudo"`. The published openSUSE image does not provide admin access by default, so omit `groups` there unless your own layer adds it.
+If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`.
 
 On the published images, the password gets you console login on first boot. The SSH key is optional and only becomes useful once your derived image installs and enables an SSH server. The published images also do not ship `sudo`, so `groups` only matters if your own layer adds administrative tooling. That does not affect installation itself: generating the image, booting a VM, and writing a raw disk image all happen from outside the target system.
 
-In particular, the published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own layer.
+In particular, the published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own layer. A derived openSUSE image can use `sudo` plus either `sudo-policy-wheel-auth-self` with `groups = ["wheel"]`, or `system-group-sudo sudo-policy-sudo-auth-self` with `groups = ["sudo"]`.
 
 ```bash
 sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
