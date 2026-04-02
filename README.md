@@ -204,7 +204,7 @@ RUN apt update -y && \
     apt clean -y
 ```
 
-This example adds SSH so the SSH key in `config.toml` can actually be used after first boot. Package and service names vary by distro; for Arch and openSUSE the service name is typically `sshd`.
+This example adds SSH so the SSH key in `config.toml` can actually be used after first boot. Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
 
 Build and generate a disk image from your derived image:
 
