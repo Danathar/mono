@@ -36,10 +36,17 @@ getenforce
 If that prints `Enforcing`, install the policy package before running the builder:
 
 ```bash
+# Package-based hosts
 sudo dnf install -y osbuild-selinux
+
+# rpm-ostree / bootc hosts such as Fedora Atomic or Universal Blue
+sudo rpm-ostree install osbuild-selinux
+sudo systemctl reboot
 ```
 
-If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
+If you are on an `rpm-ostree` host and specifically want a throwaway workaround instead of layering the package, `rpm-ostree usroverlay` creates a transient writable overlay on `/usr`. That can be useful for testing `osbuild-selinux` without keeping it layered, but it is a more advanced manual path and the changes disappear on reboot. For normal use, prefer `rpm-ostree install osbuild-selinux` and reboot.
+
+If your distro does not ship that exact package name, install the equivalent osbuild SELinux policy package for your host. If it is unavailable in your configured repos, use a different build host or add it to the image you use as your build host. If SELinux is `Permissive` or `Disabled`, you can usually skip this prerequisite.
 
 Likewise, if the Linux environment running Podman is not using SELinux, you can omit the `--security-opt label=type:unconfined_t` line from the example commands below.
 
