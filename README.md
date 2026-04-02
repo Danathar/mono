@@ -158,6 +158,10 @@ Locate the generated raw image:
 find output -type f -name 'disk.raw'
 ```
 
+To write that image onto the target machine, boot the machine from some other operating system first, such as a live USB environment. Do not boot from the disk you are about to overwrite.
+
+You also need the generated `disk.raw` available from that environment, for example on a second USB drive, an external disk, or over the network.
+
 Write the image:
 
 ```bash
