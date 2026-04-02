@@ -56,10 +56,10 @@ Create a `config.toml` with a local user so the installed system is immediately 
 [[customizations.user]]
 name = "<username>"
 password = "<temporary-password>"
-groups = ["wheel"]
+groups = ["<admin-group>"]
 ```
 
-For Debian and Ubuntu images, use `"sudo"` instead of `"wheel"` for the group name.
+Use `"sudo"` for Debian and Ubuntu images. Use `"wheel"` for Arch Linux and openSUSE images.
 
 ```bash
 mkdir -p output
@@ -90,7 +90,7 @@ You can also add an SSH key to the same `config.toml`:
 name = "<username>"
 password = "<temporary-password>"
 key = "ssh-rsa AAAA... user@host"
-groups = ["wheel"]
+groups = ["<admin-group>"]
 ```
 
 SSH keys are supported by bootc-image-builder, but the published Bootcrew images do not include an SSH server. A key only becomes useful once your derived image installs and enables SSH.
