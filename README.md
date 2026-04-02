@@ -83,14 +83,6 @@ This creates `output/qcow2/disk.qcow2` ready to boot in a VM, with the configure
 
 Replace `debian-bootc` with any image from the table above. Replace `--type qcow2` with the output format you need (see [Output Formats](#output-formats) below).
 
-## Adjusting First Boot Access
-
-The published images do not create a local login user on their own. The Quick Start above adds one because that is what most people want.
-
-Rotate or remove temporary passwords after first boot.
-
-If you intentionally want a userless image, omit the `config.toml` mount from the Quick Start command. That is mainly useful for advanced customization flows where you plan to create users some other way.
-
 ## Output Formats
 
 bootc-image-builder supports multiple output types via the `--type` flag. For Bootcrew images, these are the most useful starting points:
