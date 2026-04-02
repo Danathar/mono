@@ -8,8 +8,8 @@ None of these should need to exist. Ideally all of these projects would directly
 
 ## Table Of Contents
 
-- [Published Images](#published-images)
 - [Objective](#objective)
+- [Published Images](#published-images)
 - [Quick Start](#quick-start)
 - [Output Formats](#output-formats)
 - [Create A VM](#create-a-vm)
@@ -71,14 +71,17 @@ name = "<username>"
 password = "<temporary-password>"
 # Optional if your derived image installs and enables SSH
 key = "ssh-rsa AAAA... user@host"
+# Optional if your derived image installs sudo or similar admin tooling
 groups = ["<admin-group>"]
 ```
 
-Use `"sudo"` for Debian and Ubuntu images. Use `"wheel"` for Arch Linux and openSUSE images.
+If your derived image installs `sudo`, use `"sudo"` for Debian and Ubuntu images and `"wheel"` for Arch Linux images. The published openSUSE image does not currently provide a matching admin group, so omit `groups` there unless your own layer creates one.
 
-On the published images, the password gets you console login on first boot. The SSH key is optional and only becomes useful once your derived image installs and enables an SSH server.
+On the published images, the password gets you console login on first boot. The SSH key is optional and only becomes useful once your derived image installs and enables an SSH server. The published images also do not ship `sudo`, so `groups` only matters if your own layer adds administrative tooling.
 
 ```bash
+sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
+
 mkdir -p output
 
 sudo podman run \
@@ -154,6 +157,8 @@ This section assumes you already generated a `raw` image and created a first-boo
 Generate a raw disk image:
 
 ```bash
+sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
+
 sudo podman run \
   --rm -it --privileged \
   --security-opt label=type:unconfined_t \
