@@ -245,7 +245,7 @@ just build ubuntu
 just build opensuse
 ```
 
-This builds the container images locally. If you want first-boot access via `config.toml`, turn the local image into a disk image with bootc-image-builder:
+This builds the container images locally. Turn a local image into a disk image with bootc-image-builder:
 
 ```bash
 sudo podman run \
@@ -259,15 +259,7 @@ sudo podman run \
   localhost/debian-bootc:latest
 ```
 
-Then follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal](#install-on-bare-metal) for `raw` output.
-
-If you do not need `config.toml` customization, you can also use the included `just disk-image` recipe:
-
-```bash
-just disk-image debian
-```
-
-This creates `./bootable.img` via `bootc install to-disk`. Images built this way have no user credentials.
+Replace `localhost/debian-bootc:latest` with the local image you built. Then follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal](#install-on-bare-metal) for `raw` output.
 
 ## Forking This Repo
 
