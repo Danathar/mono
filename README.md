@@ -2,6 +2,10 @@
 
 Bootcrew publishes minimal, bootable [`bootc`](https://github.com/bootc-dev/bootc) container images for multiple Linux distributions. You can use them directly or as a base to build your own images.
 
+## Objective
+
+None of these should need to exist. Ideally all of these projects would directly publish `(project-name)-bootc` images, or at least provide a `bootc` package or bundle for it. These images aim to be as small and basic as possible to minimize maintenance burden and make it easier to upstream any efforts from them.
+
 ## Table Of Contents
 
 - [Published Images](#published-images)
@@ -27,10 +31,6 @@ Bootcrew publishes minimal, bootable [`bootc`](https://github.com/bootc-dev/boot
 All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own layer. Expect local console access only unless you add services such as SSH in your own layer.
 
 Images are rebuilt weekly to pick up distro package updates and new upstream `bootc` commits.
-
-## Objective
-
-None of these should need to exist. Ideally all of these projects would directly publish `(project-name)-bootc` images, or at least provide a `bootc` package or bundle for it. These images aim to be as small and basic as possible to minimize maintenance burden and make it easier to upstream any efforts from them.
 
 ## Quick Start
 
