@@ -50,7 +50,7 @@ groups = ["<admin-group>"]
 
 If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`.
 
-On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own image adds administrative tooling. The published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own image. For a derived openSUSE image, either install `sudo` plus `sudo-policy-wheel-auth-self` and use `groups = ["wheel"]`, or install `sudo`, `system-group-sudo`, and `sudo-policy-sudo-auth-self` and use `groups = ["sudo"]`.
+On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own image adds administrative tooling. The published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own image.
 
 ```bash
 sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
@@ -205,7 +205,9 @@ RUN apt update -y && \
 
 This example starts from Debian and adds SSH so the SSH key in `config.toml` can actually be used after first boot. Replace `debian-bootc` with any published Bootcrew image if you want to start from a different distro.
 
-Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`. For openSUSE, `sudo` access also needs a policy package such as `sudo-policy-wheel-auth-self` or `sudo-policy-sudo-auth-self`.
+Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
+
+For openSUSE, `sudo` access also needs a policy package. If you want `groups = ["wheel"]`, install `sudo` plus `sudo-policy-wheel-auth-self`. If you want `groups = ["sudo"]`, install `sudo`, `system-group-sudo`, and `sudo-policy-sudo-auth-self`.
 
 2. Create a `config.toml` for first boot so the installed system is immediately usable. Reuse the same `config.toml` pattern from [Quick Start](#quick-start), including the distro-specific admin group. If your derived image installs and enables SSH, you can also add a `key = "ssh-rsa AAAA... user@host"` line under the same `[[customizations.user]]` entry.
 
