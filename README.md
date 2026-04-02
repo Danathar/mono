@@ -279,3 +279,11 @@ Published images go to `ghcr.io/<your-user>/<image-name>:latest`. Before relying
 - the workflow you want must be present and enabled
 - merging to the default branch is what triggers publishing
 - if you keep signing enabled, configure the `SIGNING_SECRET` repository secret
+
+Helpful references:
+
+- Fork a repository: <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo>
+- Disabling and enabling a workflow: <https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows>
+- Working with the Container registry (`ghcr.io`): <https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry>
+- Using secrets in GitHub Actions: <https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets>
+- Cosign key generation for `SIGNING_SECRET`: <https://docs.sigstore.dev/cosign/key_management/signing_with_self-managed_keys/>
