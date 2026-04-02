@@ -36,7 +36,7 @@ Images are rebuilt weekly to pick up distro package updates and new upstream `bo
 
 Pull a published image and generate a bootable disk image with [bootc-image-builder](https://github.com/osbuild/bootc-image-builder):
 
-You need `podman` on the build host. Most users can stop there.
+You need `podman` on the build host. For many hosts, that is the only prerequisite.
 
 If your host uses SELinux in `Enforcing` mode, install `osbuild-selinux` first. This is the host SELinux policy that lets `bootc-image-builder` do the mount and image-construction work it needs. Without it, builds on enforcing systems often fail with SELinux permission errors even when the container is run as `--privileged`.
 
