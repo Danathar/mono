@@ -50,9 +50,7 @@ groups = ["<admin-group>"]
 
 If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`.
 
-On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own image adds administrative tooling. That does not affect installation itself: generating the image, booting a VM, and writing a raw disk image all happen from outside the target system.
-
-In particular, the published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own image. A derived openSUSE image can use `sudo` plus either `sudo-policy-wheel-auth-self` with `groups = ["wheel"]`, or `system-group-sudo sudo-policy-sudo-auth-self` with `groups = ["sudo"]`.
+On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own image adds administrative tooling. The published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own image. A derived openSUSE image can use `sudo` plus either `sudo-policy-wheel-auth-self` with `groups = ["wheel"]`, or `system-group-sudo sudo-policy-sudo-auth-self` with `groups = ["sudo"]`.
 
 ```bash
 sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
@@ -72,8 +70,6 @@ sudo podman run \
 
 This creates `output/qcow2/disk.qcow2` ready to boot in a VM, with the configured user available for console login on first boot.
 
-For Bootcrew images, this README focuses on these two `--type` values:
-
 | Type | Use case |
 | --- | --- |
 | `qcow2` | QEMU / libvirt VMs (default) |
@@ -81,7 +77,7 @@ For Bootcrew images, this README focuses on these two `--type` values:
 
 If you are just getting started, use `qcow2` for most VMs, or `raw` for bare metal and for VM storage on copy-on-write filesystems such as ZFS or Btrfs. You can specify multiple types in one run, for example `--type qcow2 --type raw`.
 
-Replace `debian-bootc` with any image from the table above. If you use `--type raw`, [Install On Bare Metal](#install-on-bare-metal) below shows how to locate and write the generated `disk.raw`. bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
+Replace `debian-bootc` with any image from the table above. If you use `--type raw`, [Install On Bare Metal](#install-on-bare-metal) below shows how to locate and write the generated `disk.raw`. For other output types, follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs.
 
 If the Linux environment running Podman does not have SELinux enabled, you can leave out the `--security-opt label=type:unconfined_t` line from the example commands below. Keeping it there usually still works, but it only matters on SELinux-enabled hosts.
 
@@ -243,9 +239,7 @@ Follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal]
 
 ## Building The Images From Source
 
-If you only want to consume the published images, use [Quick Start](#quick-start). This section is for rebuilding the Bootcrew base images locally.
-
-If you want to build the Bootcrew images themselves rather than consuming them:
+If you want to rebuild the Bootcrew base images locally rather than consume the published ones, use this section:
 
 Prerequisites:
 
@@ -280,9 +274,7 @@ Replace `localhost/debian-bootc:latest` with the local image you built. Then fol
 
 ## Forking This Repo
 
-If you only want local customization, see [Building Your Own Image](#building-your-own-image). This section is for publishing and maintaining your own fork in GHCR with GitHub Actions.
-
-If you want to publish your own customized images via GitHub Actions:
+If you want to publish and maintain your own fork in GHCR with GitHub Actions rather than only customize images locally, use this section:
 
 1. Fork this repository.
 2. Pick the distro images you want to maintain.
@@ -309,7 +301,7 @@ Helpful references:
 
 ## SELinux Hosts
 
-This section is only relevant when the Linux environment running Podman has SELinux enabled. If SELinux is `Permissive`, `Disabled`, or not present, you can usually skip it.
+If SELinux is `Permissive`, `Disabled`, or not present in the Linux environment running Podman, you can usually skip this section.
 
 Check whether you need the extra host policy package:
 
