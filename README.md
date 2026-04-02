@@ -182,7 +182,7 @@ sudo bootc upgrade
 sudo reboot
 ```
 
-Or switch to a different image entirely:
+Or switch to a different image entirely. If you want to switch to an image from your own custom repository, see [Building Your Own Image](#building-your-own-image) below:
 
 ```bash
 sudo bootc switch ghcr.io/bootcrew/arch-bootc:latest
