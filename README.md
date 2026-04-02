@@ -81,7 +81,7 @@ For Bootcrew images, this README focuses on these two `--type` values:
 | `qcow2` | QEMU / libvirt VMs (default) |
 | `raw` | Direct disk write or loopback mount |
 
-If you are just getting started, use `qcow2` for VMs or `raw` for bare metal. You can specify multiple types in one run, for example `--type qcow2 --type raw`.
+If you are just getting started, use `qcow2` for most VMs, or `raw` for bare metal and for VM storage on copy-on-write filesystems such as ZFS or Btrfs. You can specify multiple types in one run, for example `--type qcow2 --type raw`.
 
 Replace `debian-bootc` with any image from the table above. If you use `--type raw`, [Install On Bare Metal](#install-on-bare-metal) below shows how to locate and write the generated `disk.raw`. bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
 
