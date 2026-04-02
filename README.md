@@ -79,13 +79,17 @@ Build a base image:
 ```bash
 just build debian
 just build arch
+just build ubuntu
+just build opensuse
 ```
 
-If you already have another credential injection method, you can turn either one into `bootable.img` directly:
+If you already have another credential injection method, you can turn any of them into `bootable.img` directly:
 
 ```bash
 just disk-image debian
 just disk-image arch
+just disk-image ubuntu
+just disk-image opensuse
 ```
 
 For a first boot you can actually log into, use the access-image flow below.
@@ -130,6 +134,28 @@ ARG ROOT_HASH
 ARG USERNAME
 ARG USER_HASH
 RUN pacman -Syu --noconfirm sudo && \
+    echo "root:${ROOT_HASH}" | chpasswd -e && \
+    install -d -m 0755 /var/home && \
+    useradd -m -d "/var/home/${USERNAME}" -u 1000 -G wheel -s /bin/bash "${USERNAME}" && \
+    echo "${USERNAME}:${USER_HASH}" | chpasswd -e && \
+    mkdir -p /etc/sudoers.d && \
+    echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel && \
+    chmod 0440 /etc/sudoers.d/10-wheel
+EOF
+```
+
+For openSUSE:
+
+```bash
+ROOT_HASH="$(openssl passwd -6 '<temporary-root-password>')"
+USER_HASH="$(openssl passwd -6 '<temporary-user-password>')"
+
+cat > Containerfile.access <<'EOF'
+FROM <base-image>
+ARG ROOT_HASH
+ARG USERNAME
+ARG USER_HASH
+RUN zypper install -y sudo && \
     echo "root:${ROOT_HASH}" | chpasswd -e && \
     install -d -m 0755 /var/home && \
     useradd -m -d "/var/home/${USERNAME}" -u 1000 -G wheel -s /bin/bash "${USERNAME}" && \
@@ -290,6 +316,8 @@ Examples:
 
 - `ghcr.io/<your-user>/arch-bootc:latest`
 - `ghcr.io/<your-user>/debian-bootc:latest`
+- `ghcr.io/<your-user>/ubuntu-bootc:latest`
+- `ghcr.io/<your-user>/opensuse-bootc:latest`
 
 Before relying on publishing from your fork, check all of these:
 
