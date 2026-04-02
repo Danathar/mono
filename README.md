@@ -224,6 +224,8 @@ sudo podman run \
 
 bootc-image-builder resolves image references from the mounted `/var/lib/containers/storage`, so locally-built images are found automatically.
 
+Once the image is built, follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal](#install-on-bare-metal) for `raw` output to actually boot and install your custom image.
+
 ## Building The Images From Source
 
 If you want to build the Bootcrew images themselves rather than consuming them:
