@@ -50,26 +50,7 @@ If your distro does not ship that exact package name, install the equivalent osb
 
 Likewise, if the Linux environment running Podman is not using SELinux, you can omit the `--security-opt label=type:unconfined_t` line from the example commands below.
 
-```bash
-mkdir -p output
-
-sudo podman run \
-  --rm -it --privileged \
-  --security-opt label=type:unconfined_t \
-  -v ./output:/output \
-  -v /var/lib/containers/storage:/var/lib/containers/storage \
-  quay.io/centos-bootc/bootc-image-builder:latest \
-  --type qcow2 \
-  ghcr.io/bootcrew/debian-bootc:latest
-```
-
-This creates `output/qcow2/disk.qcow2` ready to boot in a VM.
-
-Replace `debian-bootc` with any image from the table above. Replace `--type qcow2` with the output format you need (see [Output Formats](#output-formats) below).
-
-## Adding A User For First Boot
-
-The published images do not create a local login user. To get console access on first boot, create a `config.toml` and pass it to bootc-image-builder:
+Create a `config.toml` with a local user so the installed system is immediately usable:
 
 ```toml
 [[customizations.user]]
@@ -78,9 +59,11 @@ password = "<temporary-password>"
 groups = ["wheel"]
 ```
 
-Then mount it when building the disk image:
+For Debian and Ubuntu images, use `"sudo"` instead of `"wheel"` for the group name.
 
 ```bash
+mkdir -p output
+
 sudo podman run \
   --rm -it --privileged \
   --security-opt label=type:unconfined_t \
@@ -92,22 +75,29 @@ sudo podman run \
   ghcr.io/bootcrew/debian-bootc:latest
 ```
 
-This creates a user that can log in on the VM or machine console.
+This creates `output/qcow2/disk.qcow2` ready to boot in a VM, with the configured user available for console login on first boot.
 
-You can also add an SSH key:
+Replace `debian-bootc` with any image from the table above. Replace `--type qcow2` with the output format you need (see [Output Formats](#output-formats) below).
+
+## Adjusting First Boot Access
+
+The published images do not create a local login user on their own. The Quick Start above adds one because that is what most people want.
+
+You can also add an SSH key to the same `config.toml`:
 
 ```toml
 [[customizations.user]]
 name = "<username>"
+password = "<temporary-password>"
 key = "ssh-rsa AAAA... user@host"
 groups = ["wheel"]
 ```
 
 SSH keys are supported by bootc-image-builder, but the published Bootcrew images do not include an SSH server. A key only becomes useful once your derived image installs and enables SSH.
 
-For Debian and Ubuntu images, use `"sudo"` instead of `"wheel"` for the group name.
-
 Rotate or remove temporary passwords after first boot.
+
+If you intentionally want a userless image, omit the `config.toml` mount from the Quick Start command. That is mainly useful for advanced customization flows where you plan to create users some other way.
 
 ## Output Formats
 
