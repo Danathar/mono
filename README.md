@@ -61,7 +61,7 @@ sudo systemctl reboot
 
 You can of course temporarily disable SELinux with `sudo setenforce 0` and later turn it back on with `sudo setenforce 1`, but that would make Dan Walsh cry! ;) See [stopdisablingselinux.com](https://stopdisablingselinux.com/).
 
-Likewise, if the Linux environment running Podman is not using SELinux (or it is turned off), you can omit the `--security-opt label=type:unconfined_t` line from the example commands below.
+If the Linux environment running Podman is not using SELinux, or SELinux is disabled there, you can omit the `--security-opt label=type:unconfined_t` line from the example commands below.
 
 Create a `config.toml` with a local user so the installed system is immediately usable:
 
