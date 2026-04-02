@@ -212,19 +212,7 @@ This example starts from Debian and adds SSH so the SSH key in `config.toml` can
 
 Package and service names vary by distro: Debian and Ubuntu typically use `openssh-server` and `ssh`, while Arch Linux and openSUSE typically use `openssh` and `sshd`.
 
-2. Create a `config.toml` for first boot so the installed system is immediately usable.
-
-```toml
-[[customizations.user]]
-name = "<username>"
-password = "<temporary-password>"
-key = "ssh-rsa AAAA... user@host"
-groups = ["<admin-group>"]
-```
-
-Use `"sudo"` for Debian and Ubuntu images. Use `"wheel"` for Arch Linux and openSUSE images.
-
-The password gives you console login on first boot. The SSH key is optional and only matters if your derived image installs and enables an SSH server.
+2. Create a `config.toml` for first boot so the installed system is immediately usable. Reuse the same `config.toml` pattern from [Quick Start](#quick-start), including the distro-specific admin group and optional SSH key.
 
 3. Build your derived image locally.
 
