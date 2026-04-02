@@ -11,7 +11,6 @@ None of these should need to exist. Ideally all of these projects would directly
 - [Objective](#objective)
 - [Published Images](#published-images)
 - [Quick Start](#quick-start)
-- [Output Formats](#output-formats)
 - [Create A VM](#create-a-vm)
 - [Install On Bare Metal](#install-on-bare-metal)
 - [Updating Installed Systems](#updating-installed-systems)
@@ -97,24 +96,16 @@ sudo podman run \
 
 This creates `output/qcow2/disk.qcow2` ready to boot in a VM, with the configured user available for console login on first boot.
 
-Replace `debian-bootc` with any image from the table above. Replace `--type qcow2` with the output format you need (see [Output Formats](#output-formats) below).
-
-## Output Formats
-
-If you jumped here directly, first generate an image with [Quick Start](#quick-start) or [Building Your Own Image](#building-your-own-image), then come back here to choose the right `--type`.
-
-bootc-image-builder supports multiple output types via the `--type` flag. For Bootcrew images, this README focuses on these two:
+For Bootcrew images, this README focuses on these two `--type` values:
 
 | Type | Use case |
 | --- | --- |
 | `qcow2` | QEMU / libvirt VMs (default) |
 | `raw` | Direct disk write or loopback mount |
 
-You can specify multiple types in one run: `--type qcow2 --type raw`.
+If you are just getting started, use `qcow2` for VMs or `raw` for bare metal. You can specify multiple types in one run, for example `--type qcow2 --type raw`.
 
-If you are just getting started, use `qcow2` for VMs or `raw` for bare metal.
-
-bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
+Replace `debian-bootc` with any image from the table above. If you use `--type raw`, [Install On Bare Metal](#install-on-bare-metal) below shows how to locate and write the generated `disk.raw`. bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
 
 ## Create A VM
 
