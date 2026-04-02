@@ -8,8 +8,6 @@ None of these should need to exist. Ideally all of these projects would directly
 
 ## Table Of Contents
 
-- [Objective](#objective)
-- [Published Images](#published-images)
 - [Quick Start](#quick-start)
 - [Create A VM](#create-a-vm)
 - [Install On Bare Metal](#install-on-bare-metal)
