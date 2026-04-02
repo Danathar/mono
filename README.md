@@ -50,7 +50,7 @@ groups = ["<admin-group>"]
 
 If your derived image installs administrative tooling, use the group that image actually configures. Debian and Ubuntu typically use `"sudo"`, and Arch Linux typically uses `"wheel"`.
 
-On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own image adds administrative tooling. The published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own image. A derived openSUSE image can use `sudo` plus either `sudo-policy-wheel-auth-self` with `groups = ["wheel"]`, or `system-group-sudo sudo-policy-sudo-auth-self` with `groups = ["sudo"]`.
+On the published images, the password gets you console login on first boot. The published images also do not ship `sudo`, so `groups` only matters if your own image adds administrative tooling. The published openSUSE image boots and installs fine, but it does not provide a built-in admin path by default. If you want admin access there, start with [Building Your Own Image](#building-your-own-image) and add it in your own image. For a derived openSUSE image, either install `sudo` plus `sudo-policy-wheel-auth-self` and use `groups = ["wheel"]`, or install `sudo`, `system-group-sudo`, and `sudo-policy-sudo-auth-self` and use `groups = ["sudo"]`.
 
 ```bash
 sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
