@@ -98,6 +98,8 @@ Replace `debian-bootc` with any image from the table above. Replace `--type qcow
 
 ## Output Formats
 
+If you jumped here directly, first generate an image with [Quick Start](#quick-start) or [Building Your Own Image](#building-your-own-image), then come back here to choose the right `--type`.
+
 bootc-image-builder supports multiple output types via the `--type` flag. For Bootcrew images, this README focuses on these two:
 
 | Type | Use case |
@@ -112,6 +114,8 @@ If you are just getting started, use `qcow2` for VMs or `raw` for bare metal.
 bootc-image-builder also supports additional formats such as `vmdk`, `vhd`, `ami`, `gce`, `anaconda-iso`, and `bootc-installer`, but those are outside the main path documented here. Follow the upstream [bootc-image-builder](https://github.com/osbuild/bootc-image-builder) docs if you need one of those formats.
 
 ## Create A VM
+
+This section assumes you already generated a `qcow2` image and created a first-boot user via `config.toml`. If not, start with [Quick Start](#quick-start) for published images or [Building Your Own Image](#building-your-own-image) for a derived image.
 
 After generating a qcow2 image:
 
@@ -144,6 +148,8 @@ virsh -c qemu:///session undefine bootc-local --nvram || true
 Then run the `virt-install` command again.
 
 ## Install On Bare Metal
+
+This section assumes you already generated a `raw` image and created a first-boot user via `config.toml`. If not, start with [Quick Start](#quick-start) for published images or [Building Your Own Image](#building-your-own-image) for a derived image.
 
 Generate a raw disk image:
 
@@ -188,6 +194,8 @@ Replace `output/raw/disk.raw` with the exact path reported by `find` if your bui
 
 ## Updating Installed Systems
 
+This section is for systems that are already installed from one of these images. If you still need to build, boot, or install an image, start with [Quick Start](#quick-start), [Create A VM](#create-a-vm), or [Install On Bare Metal](#install-on-bare-metal).
+
 Once a system is installed, update it by pulling a newer version of the image:
 
 ```bash
@@ -207,6 +215,8 @@ Your local users and host state persist across image updates under `/etc` and `/
 ## Building Your Own Image
 
 You can use any Bootcrew image as a `FROM` base in your own Containerfile. This is the right path if you want remote access, extra packages, or opinionated defaults.
+
+If you only want to use a published image as-is, go back to [Quick Start](#quick-start) instead.
 
 You can do this from any Linux host with Podman. You do not need to install one of these images first.
 
@@ -259,6 +269,8 @@ Follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal]
 
 ## Building The Images From Source
 
+If you only want to consume the published images, use [Quick Start](#quick-start). This section is for rebuilding the Bootcrew base images locally.
+
 If you want to build the Bootcrew images themselves rather than consuming them:
 
 Prerequisites:
@@ -293,6 +305,8 @@ sudo podman run \
 Replace `localhost/debian-bootc:latest` with the local image you built. Then follow [Create A VM](#create-a-vm) for `qcow2` output or [Install On Bare Metal](#install-on-bare-metal) for `raw` output.
 
 ## Forking This Repo
+
+If you only want local customization, see [Building Your Own Image](#building-your-own-image). This section is for publishing and maintaining your own fork in GHCR with GitHub Actions.
 
 If you want to publish your own customized images via GitHub Actions:
 
