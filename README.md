@@ -1,6 +1,6 @@
 # Bootcrew
 
-Bootcrew publishes minimal, bootable [`bootc`](https://github.com/bootc-dev/bootc) container images for multiple Linux distributions. You can use them directly or as a base to build your own images.
+Bootcrew publishes minimal, bootable [`bootc`](https://github.com/bootc-dev/bootc) container images for multiple Linux distributions. Each image is a standard OCI container that can be installed as a bootable disk image and updated in place by pulling a newer version of the container — no traditional package upgrades or reinstalls. You can use them directly or as a base to build your own images.
 
 ## Objective
 
@@ -8,6 +8,7 @@ None of these should need to exist. Ideally all of these projects would directly
 
 ## Table Of Contents
 
+- [Published Images](#published-images)
 - [Quick Start](#quick-start)
 - [Create A VM](#create-a-vm)
 - [Install On Bare Metal](#install-on-bare-metal)
@@ -19,26 +20,34 @@ None of these should need to exist. Ideally all of these projects would directly
 
 ## Published Images
 
-| Image | Reference | Architecture(s) |
-| --- | --- | --- |
-| Arch Linux | `ghcr.io/bootcrew/arch-bootc:latest` | `amd64` |
-| Debian | `ghcr.io/bootcrew/debian-bootc:latest` | `amd64`, `arm64` |
-| Ubuntu | `ghcr.io/bootcrew/ubuntu-bootc:latest` | `amd64`, `arm64` |
-| openSUSE Tumbleweed | `ghcr.io/bootcrew/opensuse-bootc:latest` | `amd64`, `arm64` |
+| Image | Base | Reference | Architecture(s) |
+| --- | --- | --- | --- |
+| Arch Linux | `archlinux:latest` | `ghcr.io/bootcrew/arch-bootc:latest` | `amd64` |
+| Debian | `debian:unstable` | `ghcr.io/bootcrew/debian-bootc:latest` | `amd64`, `arm64` |
+| Ubuntu | `ubuntu:questing` | `ghcr.io/bootcrew/ubuntu-bootc:latest` | `amd64`, `arm64` |
+| openSUSE Tumbleweed | `opensuse/tumbleweed:latest` | `ghcr.io/bootcrew/opensuse-bootc:latest` | `amd64`, `arm64` |
 
-All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own image. Expect local console access only unless you add services such as SSH in your own image.
+These images are experimental. All images are base / CLI images. None include a desktop environment, display manager, or user-facing services. They are intended as a starting point — add what you need in your own image. Expect local console access only unless you add services such as SSH in your own image.
 
-Images are rebuilt weekly to pick up distro package updates and new upstream `bootc` commits.
+Each image builds `bootc` from the upstream [bootc-dev/bootc](https://github.com/bootc-dev/bootc) source rather than using a distro-packaged version. Images are rebuilt weekly (every Tuesday) to pick up distro package updates and new upstream `bootc` commits. In addition to `:latest`, each build is tagged with a date stamp (e.g. `:latest.20260401`, `:20260401`) so you can pin to a specific build.
+
+### Verifying Images
+
+Published images are signed with [cosign](https://docs.sigstore.dev/cosign/). The public key is in `cosign.pub` at the root of this repository. To verify an image before using it:
+
+```bash
+cosign verify --key cosign.pub ghcr.io/bootcrew/debian-bootc:latest
+```
 
 ## Quick Start
 
 Pull a published image and generate a bootable disk image with [bootc-image-builder](https://github.com/osbuild/bootc-image-builder):
 
-You need `podman` on the build host. For many hosts, that is the only prerequisite.
+You need rootful `podman` on the build host (the builder runs as `sudo podman run`).
 
 If the Linux environment running Podman uses SELinux in `Enforcing` mode, see [SELinux Hosts](#selinux-hosts) before running the builder.
 
-Create a `config.toml` with a local user plus a temporary `root` password so you can log in and administer the system after first boot:
+Create a `config.toml` with a local user plus a temporary `root` password. `bootc-image-builder` reads this file at disk-image build time and bakes the users into the image, so they are available on first boot:
 
 ```toml
 [[customizations.user]]
@@ -85,6 +94,8 @@ If the Linux environment running Podman does not have SELinux enabled, you can l
 
 This section assumes you already generated a `qcow2` image and created a first-boot user via `config.toml`. If not, start with [Quick Start](#quick-start) for published images or [Building Your Own Image](#building-your-own-image) for a derived image.
 
+You need `virt-install`, `libvirt`, `qemu`, and UEFI firmware (e.g. OVMF / `edk2-ovmf`) available on the host.
+
 After generating a qcow2 image:
 
 ```bash
@@ -104,7 +115,13 @@ virt-install \
   --noautoconsole
 ```
 
-Log in on the VM console with the user you added in `config.toml`.
+The `--noautoconsole` flag returns you to your shell after the VM starts. To attach to the VM console:
+
+```bash
+virt-viewer --connect qemu:///session bootc-local
+```
+
+Log in with the user you added in `config.toml`.
 
 To recreate the VM:
 
@@ -119,11 +136,9 @@ Then run the `virt-install` command again.
 
 This section assumes you already generated a `raw` image and created a first-boot user via `config.toml`. If not, start with [Quick Start](#quick-start) for published images or [Building Your Own Image](#building-your-own-image) for a derived image.
 
-Generate a raw disk image:
+Generate a raw disk image using the same builder command from [Quick Start](#quick-start), but with `--type raw` instead of `--type qcow2`:
 
 ```bash
-sudo podman pull ghcr.io/bootcrew/debian-bootc:latest
-
 sudo podman run \
   --rm -it --privileged \
   --security-opt label=type:unconfined_t \
@@ -166,21 +181,21 @@ Replace `output/raw/disk.raw` with the exact path reported by `find` if your bui
 
 This section is for systems that are already installed from one of these images. If you still need to build, boot, or install an image, start with [Quick Start](#quick-start), [Create A VM](#create-a-vm), or [Install On Bare Metal](#install-on-bare-metal).
 
-Once a system is installed, update it by pulling a newer version of the image:
+Once a system is installed, pull a newer version of the same image with `bootc upgrade`:
 
 ```bash
 sudo bootc upgrade
 sudo reboot
 ```
 
-Or switch to a different image entirely. If you want to switch to an image from your own custom repository, see [Building Your Own Image](#building-your-own-image) below:
+To change to a different image entirely, use `bootc switch`. This changes the source image for all future updates. If you want to switch to an image from your own custom repository, see [Building Your Own Image](#building-your-own-image) below:
 
 ```bash
 sudo bootc switch ghcr.io/bootcrew/arch-bootc:latest
 sudo reboot
 ```
 
-Your local users and host state persist across image updates under `/etc` and `/var/home`.
+Your local users and host state persist across both upgrades and switches. The system keeps `/etc` and `/var/home` intact while replacing the OS image underneath.
 
 ## Building Your Own Image
 
@@ -289,7 +304,7 @@ Published images go to `ghcr.io/<your-user>/<image-name>:latest`. Before relying
 - GitHub Actions must be enabled on the fork
 - the workflow you want must be present and enabled
 - merging to the default branch is what triggers publishing
-- if you keep signing enabled, configure the `SIGNING_SECRET` repository secret
+- the workflows sign published images with cosign by default — you must configure the `SIGNING_SECRET` repository secret with a cosign private key, or publishing will fail. To disable signing, remove the signing steps from the workflows
 
 Helpful references:
 
